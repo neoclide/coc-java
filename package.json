@@ -1,0 +1,304 @@
+{
+  "name": "coc-java",
+  "version": "1.0.0",
+  "description": "Java langauage extension for coc.nvim",
+  "main": "lib/index.js",
+  "publisher": "chemzqm",
+  "engines": {
+    "coc": ">=0.0.24"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/neoclide/coc-java"
+  },
+  "bugs": "https://github.com/neoclide/coc-java/issues",
+  "scripts": {
+    "clean": "rimraf lib",
+    "build": "tsc -p tsconfig.json",
+    "prepare": "yarn clean && yarn build"
+  },
+  "activationEvents": [
+    "onLanguage:java",
+    "onCommand:java.show.references",
+    "onCommand:java.show.implementations",
+    "onCommand:java.open.output",
+    "onCommand:java.open.serverLog",
+    "onCommand:java.execute.workspaceCommand",
+    "onCommand:java.projectConfiguration.update",
+    "workspaceContains:pom.xml",
+    "workspaceContains:build.gradle"
+  ],
+  "contributes": {
+    "snippets": [
+      {
+        "language": "java",
+        "path": "./snippets/java.json"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Java configuration",
+      "properties": {
+        "java.home": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Specifies the folder path to the JDK (8 or more recent) used to launch the Java Language Server.\nOn Windows, backslashes must be escaped, i.e.\n\"java.home\":\"C:\\\\Program Files\\\\Java\\\\jdk1.8.0_161\"",
+          "scope": "window"
+        },
+        "java.jdt.ls.vmargs": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": "-noverify -Xmx1G -XX:+UseG1GC -XX:+UseStringDeduplication",
+          "description": "Specifies extra VM arguments used to launch the Java Language Server. Eg. use `-noverify -Xmx1G  -XX:+UseG1GC -XX:+UseStringDeduplication` to bypass class verification, increase the heap size to 1GB and enable String deduplication with the G1 Garbage collector",
+          "scope": "window"
+        },
+        "java.errors.incompleteClasspath.severity": {
+          "type": [
+            "string"
+          ],
+          "enum": [
+            "ignore",
+            "info",
+            "warning",
+            "error"
+          ],
+          "default": "warning",
+          "description": "Specifies the severity of the message when the classpath is incomplete for a Java file",
+          "scope": "window"
+        },
+        "java.configuration.updateBuildConfiguration": {
+          "type": [
+            "string"
+          ],
+          "enum": [
+            "disabled",
+            "interactive",
+            "automatic"
+          ],
+          "default": "interactive",
+          "description": "Specifies how modifications on build files update the Java classpath/configuration",
+          "scope": "window"
+        },
+        "java.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the Java language server.",
+          "scope": "window"
+        },
+        "java.import.gradle.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable the Gradle importer.",
+          "scope": "window"
+        },
+        "java.import.maven.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable the Maven importer.",
+          "scope": "window"
+        },
+        "java.referencesCodeLens.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable/disable the references code lens.",
+          "scope": "window"
+        },
+        "java.signatureHelp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable the signature help.",
+          "scope": "window"
+        },
+        "java.implementationsCodeLens.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable/disable the implementations code lens.",
+          "scope": "window"
+        },
+        "java.configuration.maven.userSettings": {
+          "type": "string",
+          "default": null,
+          "description": "Absolute path to Maven's settings.xml",
+          "scope": "window"
+        },
+        "java.format.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable default Java formatter",
+          "scope": "window"
+        },
+        "java.saveActions.organizeImports": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable/disable auto organize imports on save action",
+          "scope": "window"
+        },
+        "java.import.exclusions": {
+          "type": "array",
+          "description": "Configure glob patterns for excluding folders",
+          "default": [
+            "**/node_modules/**",
+            "**/.metadata/**",
+            "**/archetype-resources/**",
+            "**/META-INF/maven/**"
+          ],
+          "scope": "window"
+        },
+        "java.contentProvider.preferred": {
+          "type": "string",
+          "description": "Preferred content provider (a 3rd party decompiler id, usually)",
+          "default": null,
+          "scope": "window"
+        },
+        "java.autobuild.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable the 'auto build'",
+          "scope": "window"
+        },
+        "java.completion.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable code completion support",
+          "scope": "window"
+        },
+        "java.completion.overwrite": {
+          "type": "boolean",
+          "default": true,
+          "description": "When set to true, code completion overwrites the current text. When set to false, code is simply added instead.",
+          "scope": "window"
+        },
+        "java.completion.guessMethodArguments": {
+          "type": "boolean",
+          "default": true,
+          "description": "When set to true, method arguments are guessed when a method is selected from as list of code assist proposals.",
+          "scope": "window"
+        },
+        "java.completion.favoriteStaticMembers": {
+          "type": "array",
+          "description": "Defines a list of static members or types with static members. Content assist will propose those static members even if the import is missing.",
+          "default": [
+            "org.junit.Assert.*",
+            "org.junit.Assume.*",
+            "org.junit.jupiter.api.Assertions.*",
+            "org.junit.jupiter.api.Assumptions.*",
+            "org.junit.jupiter.api.DynamicContainer.*",
+            "org.junit.jupiter.api.DynamicTest.*"
+          ],
+          "scope": "window"
+        },
+        "java.completion.importOrder": {
+          "type": "array",
+          "description": "Defines the sorting order of import statements. A package or type name prefix (e.g. 'org.eclipse') is a valid entry. An import is always added to the most specific group.",
+          "default": [
+            "java",
+            "javax",
+            "com",
+            "org"
+          ],
+          "scope": "window"
+        },
+        "java.progressReports.enabled": {
+          "type": "boolean",
+          "description": "[Experimental] Enable/disable progress reports from background processes on the server.",
+          "default": true,
+          "scope": "window"
+        },
+        "java.format.settings.url": {
+          "type": "string",
+          "description": "Specifies the url or file path to the [Eclipse formatter xml settings](https://github.com/redhat-developer/vscode-java/wiki/Formatter-settings).",
+          "default": null,
+          "scope": "window"
+        },
+        "java.format.settings.profile": {
+          "type": "string",
+          "description": "Optional formatter profile name from the Eclipse formatter settings.",
+          "default": null,
+          "scope": "window"
+        },
+        "java.format.comments.enabled": {
+          "type": "boolean",
+          "description": "Includes the comments during code formatting.",
+          "default": true,
+          "scope": "window"
+        },
+        "java.format.onType.enabled": {
+          "type": "boolean",
+          "description": "Enable/disable automatic block formatting when typing `;`, `<enter>` or `}`",
+          "default": true,
+          "scope": "window"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "java.projectConfiguration.update",
+        "title": "Update project configuration",
+        "category": "Java"
+      },
+      {
+        "command": "java.open.serverLog",
+        "title": "Open Java Language Server log file",
+        "category": "Java"
+      },
+      {
+        "command": "java.workspace.compile",
+        "title": "Force Java compilation",
+        "category": "Java"
+      },
+      {
+        "command": "java.edit.organizeImports",
+        "title": "Organize Imports",
+        "category": "Java"
+      },
+      {
+        "command": "java.open.formatter.settings",
+        "title": "Open Java formatter settings",
+        "category": "Java"
+      },
+      {
+        "command": "java.clean.workspace",
+        "title": "Clean the Java language server workspace",
+        "category": "Java"
+      }
+    ]
+  },
+  "author": "chemzqm@gmail.com",
+  "license": "EPL 1.0",
+  "devDependencies": {
+    "@chemzqm/tsconfig": "^0.0.3",
+    "@chemzqm/tslint-config": "^1.0.17",
+    "@types/glob": "5.0.30",
+    "@types/mocha": "^5.2.5",
+    "@types/node": "^6.0.40",
+    "coc.nvim": "^0.0.25",
+    "gulp": "^4.0.0",
+    "gulp-decompress": "2.0.1",
+    "gulp-download": "0.0.1",
+    "gulp-tslint": "^8.1.3",
+    "mocha": "^5.2.0",
+    "rimraf": "^2.6.2",
+    "tslint": "^5.11.0",
+    "typescript": "^3.0.3"
+  },
+  "dependencies": {
+    "expand-home-dir": "^0.0.3",
+    "find-java-home": "0.2.0",
+    "glob": "^7.1.1",
+    "path-exists": "^3.0.0",
+    "tmp": "^0.0.31",
+    "tslib": "^1.9.3",
+    "vscode-languageserver-protocol": "^3.13.0",
+    "vscode-uri": "^1.0.6"
+  }
+}
