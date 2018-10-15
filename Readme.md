@@ -47,19 +47,19 @@ The path to the Java Development Kit is searched in the following order:
 Available commands
 ==========================
 The following commands are available:
-- `Java:Update Project configuration` (`Shift+Alt+U`):  is available when the editor is focused on a Maven pom.xml or a Gradle file. It forces project configuration / classpath updates (eg. dependency changes or Java compilation level), according to the project build descriptor.
+- `Java:Update Project configuration`:  is available when the editor is focused on a Maven pom.xml or a Gradle file. It forces project configuration / classpath updates (eg. dependency changes or Java compilation level), according to the project build descriptor.
 - `Java:Open Java Language Server log file`: opens the Java Language Server log file, useful for troubleshooting problems.
-- `Java:Force Java compilation` (`Shift+Alt+B`): manually triggers compilation of the workspace.
-- `Java:Organize imports` (`Shift+Alt+O`): Organize imports in the currently opened Java file.
+- `Java:Force Java compilation`: manually triggers compilation of the workspace.
+- `Java:Organize imports`: Organize imports in the currently opened Java file.
 - `Java:Open Java formatter settings`: Open the Eclipse formatter settings. Creates a new settings file if none exists.
 - `Java:Clean the Java language server workspace`: Clean the Java language server workspace.
 
-Supported VS Code settings
+Supported settings
 ==========================
 The following settings are supported:
 
-* `java.home` : Absolute path to JDK 8 home folder used to launch the Java Language Server. Requires VS Code restart.
-* `java.jdt.ls.vmargs` : Extra VM arguments used to launch the Java Language Server. Requires VS Code restart.
+* `java.home` : Absolute path to JDK 8 home folder used to launch the Java Language Server. Requires coc server restart.
+* `java.jdt.ls.vmargs` : Extra VM arguments used to launch the Java Language Server. Requires coc server restart.
 * `java.configuration.updateBuildConfiguration` : Specifies how modifications on build files update the Java classpath/configuration. Supported values are `disabled` (nothing happens), `interactive` (asks about updating on every modification), `automatic` (updating is automatically triggered).
 * `java.errors.incompleteClasspath.severity` : Specifies the severity of the message when the classpath is incomplete for a Java file. Supported values are `ignore`, `info`, `warning`, `error`.
 * `java.trace.server` : Traces the communication between VS Code and the Java language server.
