@@ -218,7 +218,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
     }
   }
 
-  workspace.showMessage('JDT Language Server starting')
+  workspace.showMessage(`JDT Language Server starting at ${workspace.root}`)
   languageClient.start()
   // Register commands here to make it available even when the language client fails
   commands.registerCommand(Commands.OPEN_SERVER_LOG, async () => await openServerLogFile(workspacePath))

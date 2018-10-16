@@ -20,7 +20,7 @@ export function prepareExecutable(requirements: RequirementsData, workspacePath,
 }
 
 export function awaitServerConnection(port): Thenable<StreamInfo> {
-  let addr = parseInt(port)
+  let addr = parseInt(port, 10)
   return new Promise((res, rej) => {
     let server = net.createServer(stream => {
       server.close()
