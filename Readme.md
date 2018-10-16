@@ -19,6 +19,8 @@ Quick Start
 
   function! s:LoadJavaContent(uri)
     setfiletype java
+    " make sure extension activated
+    call CocAction('activeExtension', 'coc-java')
     let content = CocRequest('java', 'java/classFileContents', {'uri': a:uri})
     call setline(1, split(content, "\n"))
     setl nomodified
