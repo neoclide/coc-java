@@ -1,4 +1,4 @@
-import { commands, ExtensionContext, LanguageClient, LanguageClientOptions, RevealOutputChannelOn, StreamInfo, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import { services, commands, ExtensionContext, LanguageClient, LanguageClientOptions, RevealOutputChannelOn, StreamInfo, workspace, WorkspaceConfiguration } from 'coc.nvim'
 import * as fs from 'fs'
 import * as net from 'net'
 import * as os from 'os'
@@ -88,6 +88,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
 
   // Create the language client and start the client.
   languageClient = new LanguageClient('java', 'Language Support for Java', serverOptions, clientOptions)
+
   languageClient.registerProposedFeatures()
   languageClient.onReady().then(() => {
     languageClient.onNotification(StatusNotification.type, report => {
@@ -225,13 +226,9 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
   commands.registerCommand(Commands.OPEN_FORMATTER, async () => openFormatter(extensionPath))
   commands.registerCommand(Commands.CLEAN_WORKSPACE, () => cleanWorkspace(workspacePath))
   context.subscriptions.push(onConfigurationChange())
-}
-
-export function deactivate(): Thenable<void> {
-  if (!languageClient) {
-    return undefined
-  }
-  return languageClient.stop()
+  context.subscriptions.push(
+    services.registLanguageClient(languageClient)
+  )
 }
 
 function logNotification(message: string, ..._items: string[]): void {

@@ -12,6 +12,21 @@ Quick Start
   ```
   :CocInstall coc-java
   ```
+* Enable open uri of `jdt://` format add
+
+  ``` vim
+  autocmd BufReadCmd,FileReadCmd,SourceCmd jdt://* call s:LoadJavaContent(expand("<amatch>"))
+
+  function! s:LoadJavaContent(uri)
+    setfiletype java
+    let content = CocRequest('java', 'java/classFileContents', {'uri': a:uri})
+    call setline(1, split(content, "\n"))
+    setl nomodified
+    setl readonly
+  endfunction
+  ```
+
+  to your `init.vim` or `.vimrc`
 
 Features
 =========
