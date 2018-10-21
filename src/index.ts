@@ -154,12 +154,12 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
     })
     commands.registerCommand(Commands.SHOW_JAVA_REFERENCES, (uri: string, position: Position, locations: Location[]) => {
       commands.executeCommand(Commands.SHOW_REFERENCES, Uri.parse(uri), position, locations)
-    })
+    }, null, true)
     commands.registerCommand(Commands.SHOW_JAVA_IMPLEMENTATIONS, (uri: string, position: Position, locations: Location[]) => {
       commands.executeCommand(Commands.SHOW_REFERENCES, Uri.parse(uri), position, locations)
-    })
+    }, null, true)
 
-    commands.registerCommand(Commands.CONFIGURATION_UPDATE, uri => projectConfigurationUpdate(languageClient, uri))
+    commands.registerCommand(Commands.CONFIGURATION_UPDATE, uri => projectConfigurationUpdate(languageClient, uri), null, true)
 
     commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH, (_data?: any) => setIncompleteClasspathSeverity('ignore'))
 
@@ -167,12 +167,12 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
       commands.executeCommand(Commands.OPEN_BROWSER, Uri.parse('https://github.com/redhat-developer/vscode-java/wiki/%22Classpath-is-incomplete%22-warning'))
     })
 
-    commands.registerCommand(Commands.PROJECT_CONFIGURATION_STATUS, (uri, status) => setProjectConfigurationUpdate(languageClient, uri, status))
+    commands.registerCommand(Commands.PROJECT_CONFIGURATION_STATUS, (uri, status) => setProjectConfigurationUpdate(languageClient, uri, status), null, true)
 
     commands.registerCommand(Commands.APPLY_WORKSPACE_EDIT, obj => {
       // tslint:disable-next-line:no-floating-promises
       applyWorkspaceEdit(obj)
-    })
+    }, null, true)
 
     commands.registerCommand(Commands.EDIT_ORGANIZE_IMPORTS, async () => {
       let document = await workspace.document
@@ -188,7 +188,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
         arguments: rest
       }
       return languageClient.sendRequest(ExecuteCommandRequest.type, params)
-    })
+    }, null, true)
 
     commands.registerCommand(Commands.COMPILE_WORKSPACE, async (isFullCompile: boolean) => {
       if (typeof isFullCompile !== 'boolean') {
