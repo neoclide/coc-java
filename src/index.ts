@@ -1,15 +1,15 @@
-import { services, commands, ExtensionContext, LanguageClient, LanguageClientOptions, RevealOutputChannelOn, StreamInfo, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import { services, commands, ExtensionContext, LanguageClient, LanguageClientOptions, RevealOutputChannelOn, StreamInfo, workspace, WorkspaceConfiguration, TextDocumentContentProvider } from 'coc.nvim'
 import * as fs from 'fs'
 import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
-import { ExecuteCommandParams, ExecuteCommandRequest, Location, Position, Disposable, WorkspaceEdit } from 'vscode-languageserver-protocol'
+import { ExecuteCommandParams, ExecuteCommandRequest, Location, Position, Disposable, WorkspaceEdit, CancellationToken } from 'vscode-languageserver-protocol'
 import Uri from 'vscode-uri'
 import { Commands } from './commands'
 import { ExtensionAPI } from './extension.api'
 import { awaitServerConnection, prepareExecutable } from './javaServerStarter'
 import { collectionJavaExtensions } from './plugin'
-import { ActionableNotification, CompileWorkspaceRequest, CompileWorkspaceStatus, ExecuteClientCommandRequest, FeatureStatus, MessageType, ProjectConfigurationUpdateRequest, SendNotificationRequest, StatusNotification } from './protocol'
+import { ActionableNotification, CompileWorkspaceRequest, CompileWorkspaceStatus, ExecuteClientCommandRequest, FeatureStatus, MessageType, ProjectConfigurationUpdateRequest, SendNotificationRequest, StatusNotification, ClassFileContentsRequest } from './protocol'
 import { RequirementsData, resolveRequirements } from './requirements'
 
 let oldConfig
@@ -205,6 +205,18 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
         workspace.showMessage('Compile error!', 'error')
       }
     })
+
+    let provider: TextDocumentContentProvider = {
+      onDidChange: null,
+      provideTextDocumentContent: async (uri: Uri, token: CancellationToken): Promise<string> => {
+        let content = await Promise.resolve(languageClient.sendRequest(ClassFileContentsRequest.type, { uri: uri.toString() }, token))
+        content = content || ''
+        let { nvim } = workspace
+        await nvim.command('setfiletype java')
+        return content
+      }
+    }
+    workspace.registerTextDocumentContentProvider('jdt', provider)
   }, e => {
     context.logger.error(e.message)
   })

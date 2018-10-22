@@ -96,7 +96,7 @@
     msgpack-lite "^0.1.26"
     traverse "^0.6.6"
 
-"@chemzqm/tsconfig@0.0.3", "@chemzqm/tsconfig@^0.0.3":
+"@chemzqm/tsconfig@^0.0.3":
   version "0.0.3"
   resolved "https://registry.yarnpkg.com/@chemzqm/tsconfig/-/tsconfig-0.0.3.tgz#ce3480d15d8cec46a315488caa07c9fca819aecc"
   integrity sha512-MjF25vbqLYR+S+JJLgBi0vn4gZqv/C87H+yPSlVKEqlIJAJOGJOgFPUFvRS7pdRHqkv2flX/oRxzxhlu2V0X1w==
@@ -702,20 +702,19 @@ co@^4.6.0:
   resolved "https://registry.yarnpkg.com/co/-/co-4.6.0.tgz#6ea6bdf3d853ae54ccb8e47bfa0bf3f9031fb184"
   integrity sha1-bqa989hTrlTMuOR7+gvz+QMfsYQ=
 
-coc.nvim@^0.0.25:
-  version "0.0.25"
-  resolved "https://registry.yarnpkg.com/coc.nvim/-/coc.nvim-0.0.25.tgz#23d019e823b5fdfcd192d20995b0baa6122582c2"
-  integrity sha512-fRiooVRbGMp12FThEeRVtdiUjBmuKQOZcYBHIAXzKpzu0e8u2CgdDZgn9mWdPReeLSZlRYPo+fLW+MqYxG7nrg==
+coc.nvim@^0.0.28:
+  version "0.0.28"
+  resolved "https://registry.yarnpkg.com/coc.nvim/-/coc.nvim-0.0.28.tgz#5078d1269d8ab79ece6d7bb8aa4df041b71c1ba9"
+  integrity sha512-OmJEuiJL/Otpp8h6t/Ck5SxXL5LMIlDDZpLlqe2HC3QyK0e65BgJEBo0mwtoeTGPD5WGusn99yhQT0Fjv3bk5w==
   dependencies:
     "@chemzqm/neovim" "4.3.24"
-    "@chemzqm/tsconfig" "0.0.3"
     debounce "^1.2.0"
-    diff "^3.5.0"
     fast-diff "^1.2.0"
     fb-watchman "^2.0.0"
     find-up "^3.0.0"
     fuzzaldrin "^2.1.0"
     glob "^7.1.3"
+    isuri "^2.0.3"
     jsonc-parser "^2.0.2"
     log4js "^3.0.6"
     minimatch "^3.0.4"
@@ -1031,7 +1030,7 @@ detect-libc@^1.0.2:
   resolved "https://registry.yarnpkg.com/detect-libc/-/detect-libc-1.0.3.tgz#fa137c4bd698edf55cd5cd02ac559f91a4c4ba9b"
   integrity sha1-+hN8S9aY7fVc1c0CrFWfkaTEups=
 
-diff@3.5.0, diff@^3.2.0, diff@^3.5.0:
+diff@3.5.0, diff@^3.2.0:
   version "3.5.0"
   resolved "https://registry.yarnpkg.com/diff/-/diff-3.5.0.tgz#800c0dd1e0a8bfbc95835c202ad220fe317e5a12"
   integrity sha512-A46qtFgd+g7pDZinpnwiRJtxbC1hpgf0uzP3iG89scHk0AUC7A1TGxf5OiiOUv/JMZR8GOt8hL900hV0bOy5xA==
@@ -2054,6 +2053,13 @@ isstream@~0.1.2:
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/isstream/-/isstream-0.1.2.tgz#47e63f7af55afa6f92e1500e690eb8b8529c099a"
   integrity sha1-R+Y/evVa+m+S4VAOaQ64uFKcCZo=
+
+isuri@^2.0.3:
+  version "2.0.3"
+  resolved "https://registry.yarnpkg.com/isuri/-/isuri-2.0.3.tgz#3437121db2fe65af0ba080b7e1a8636f632cca91"
+  integrity sha1-NDcSHbL+Za8LoIC34ahjb2MsypE=
+  dependencies:
+    rfc-3986 "1.0.1"
 
 js-tokens@^3.0.0, js-tokens@^3.0.2:
   version "3.0.2"
@@ -3156,6 +3162,11 @@ ret@~0.1.10:
   version "0.1.15"
   resolved "https://registry.yarnpkg.com/ret/-/ret-0.1.15.tgz#b8a4825d5bdb1fc3f6f53c2bc33f81388681c7bc"
   integrity sha512-TTlYpa+OL+vMMNG24xSlQGEJ3B/RzEfUlLct7b5G/ytav+wPrplCpVMFuwzXbkecJrb6IYo1iFb0S9v37754mg==
+
+rfc-3986@1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/rfc-3986/-/rfc-3986-1.0.1.tgz#eeeb88342fadbe8027c0f36ada921a13e6f96206"
+  integrity sha1-7uuINC+tvoAnwPNq2pIaE+b5YgY=
 
 rfdc@^1.1.2:
   version "1.1.2"
