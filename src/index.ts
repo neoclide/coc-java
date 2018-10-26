@@ -9,7 +9,7 @@ import { Commands } from './commands'
 import { ExtensionAPI } from './extension.api'
 import { awaitServerConnection, prepareExecutable } from './javaServerStarter'
 import { collectionJavaExtensions } from './plugin'
-import { ActionableNotification, CompileWorkspaceRequest, CompileWorkspaceStatus, ExecuteClientCommandRequest, FeatureStatus, MessageType, ProjectConfigurationUpdateRequest, SendNotificationRequest, StatusNotification, ClassFileContentsRequest } from './protocol'
+import { ActionableNotification, CompileWorkspaceRequest, CompileWorkspaceStatus, ExecuteClientCommandRequest, FeatureStatus, MessageType, ProjectConfigurationUpdateRequest, SendNotificationRequest, StatusNotification, ClassFileContentsRequest, ProgressReportNotification } from './protocol'
 import { RequirementsData, resolveRequirements } from './requirements'
 
 let oldConfig
@@ -116,6 +116,13 @@ export async function activate(context: ExtensionContext): Promise<void> {
         case 'Message':
           workspace.showMessage(report.message)
           break
+      }
+    })
+    languageClient.onNotification(ProgressReportNotification.type, progress => {
+      progressItem.show()
+      progressItem.text = progress.status
+      if (progress.complete) {
+        setTimeout(() => { progressItem.hide() }, 500)
       }
     })
     languageClient.onNotification(ActionableNotification.type, notification => {
