@@ -93,10 +93,12 @@ export async function activate(context: ExtensionContext): Promise<void> {
   languageClient = new LanguageClient('java', 'Language Support for Java', serverOptions, clientOptions)
 
   languageClient.registerProposedFeatures()
+  let started = false
   languageClient.onReady().then(() => {
     languageClient.onNotification(StatusNotification.type, report => {
       switch (report.type) {
         case 'Started':
+          started = true
           progressItem.hide()
           let info: ExtensionAPI = {
             apiVersion: '0.1',
@@ -111,7 +113,10 @@ export async function activate(context: ExtensionContext): Promise<void> {
           workspace.showMessage(`JDT Language Server error ${report.message}`, 'error')
           break
         case 'Starting':
-          // progressItem.show()
+          if (!started) {
+            progressItem.text = report.message
+            progressItem.show()
+          }
           break
         case 'Message':
           workspace.showMessage(report.message)
