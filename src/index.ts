@@ -13,11 +13,10 @@ import { ActionableNotification, CompileWorkspaceRequest, CompileWorkspaceStatus
 import { RequirementsData, resolveRequirements } from './requirements'
 
 let oldConfig
-let lastStatus
 let languageClient: LanguageClient
 const cleanWorkspaceFileName = '.cleanWorkspace'
 
-export async function activate(context: ExtensionContext): Promise<ExtensionAPI> {
+export async function activate(context: ExtensionContext): Promise<void> {
   let requirements: RequirementsData
   try {
     requirements = await resolveRequirements()
@@ -28,6 +27,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
     }
     return
   }
+
+  let progressItem = workspace.createStatusBarItem(9, { progress: true })
+  progressItem.text = 'jdt starting'
+  progressItem.show()
 
   let storagePath = getTempWorkspace()
   let workspacePath = path.resolve(storagePath + '/jdt_ws')
@@ -94,17 +97,21 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
     languageClient.onNotification(StatusNotification.type, report => {
       switch (report.type) {
         case 'Started':
-          workspace.showMessage('JDT Language Server started')
-          context.logger.info({
+          progressItem.hide()
+          let info: ExtensionAPI = {
             apiVersion: '0.1',
             javaRequirement: requirements,
-          })
+          }
+          workspace.showMessage('JDT Language Server started')
+          languageClient.info('JDT Language Server started', info)
+          context.logger.info(info)
           break
         case 'Error':
+          progressItem.hide()
           workspace.showMessage(`JDT Language Server error ${report.message}`, 'error')
           break
         case 'Starting':
-          // workspace.showMessage('JDT Language Server starting')
+          // progressItem.show()
           break
         case 'Message':
           workspace.showMessage(report.message)
