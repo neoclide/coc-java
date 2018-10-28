@@ -1,15 +1,15 @@
-import { services, commands, ExtensionContext, LanguageClient, LanguageClientOptions, RevealOutputChannelOn, StreamInfo, workspace, WorkspaceConfiguration, TextDocumentContentProvider } from 'coc.nvim'
+import { commands, CompletionContext, ExtensionContext, LanguageClient, LanguageClientOptions, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, workspace, WorkspaceConfiguration } from 'coc.nvim'
 import * as fs from 'fs'
 import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
-import { ExecuteCommandParams, ExecuteCommandRequest, Location, Position, Disposable, WorkspaceEdit, CancellationToken } from 'vscode-languageserver-protocol'
+import { CancellationToken, CompletionItem, CompletionItemKind, CompletionList, Disposable, ExecuteCommandParams, ExecuteCommandRequest, Location, Position, TextDocument, WorkspaceEdit } from 'vscode-languageserver-protocol'
 import Uri from 'vscode-uri'
 import { Commands } from './commands'
 import { ExtensionAPI } from './extension.api'
 import { awaitServerConnection, prepareExecutable } from './javaServerStarter'
 import { collectionJavaExtensions } from './plugin'
-import { ActionableNotification, CompileWorkspaceRequest, CompileWorkspaceStatus, ExecuteClientCommandRequest, FeatureStatus, MessageType, ProjectConfigurationUpdateRequest, SendNotificationRequest, StatusNotification, ClassFileContentsRequest, ProgressReportNotification } from './protocol'
+import { ActionableNotification, ClassFileContentsRequest, CompileWorkspaceRequest, CompileWorkspaceStatus, ExecuteClientCommandRequest, FeatureStatus, MessageType, ProgressReportNotification, ProjectConfigurationUpdateRequest, SendNotificationRequest, StatusNotification } from './protocol'
 import { RequirementsData, resolveRequirements } from './requirements'
 
 let oldConfig
@@ -65,7 +65,31 @@ export async function activate(context: ExtensionContext): Promise<void> {
         classFileContentsSupport: true
       }
     },
-    revealOutputChannelOn: RevealOutputChannelOn.Never
+    revealOutputChannelOn: RevealOutputChannelOn.Never,
+    middleware: {
+      provideCompletionItem: (
+        document: TextDocument,
+        position: Position,
+        context: CompletionContext,
+        token: CancellationToken,
+        next: ProvideCompletionItemsSignature
+      ): ProviderResult<CompletionItem[] | CompletionList> => {
+        return Promise.resolve(next(document, position, context, token)).then((res: CompletionItem[] | CompletionList) => {
+          let doc = workspace.getDocument(document.uri)
+          if (!doc) return []
+          let items: CompletionItem[] = res.hasOwnProperty('isIncomplete') ? (res as CompletionList).items : res as CompletionItem[]
+          let result: any = {
+            isIncomplete: false,
+            items
+          }
+          let isModule = items.length > 0 && items.every(o => o.kind == CompletionItemKind.Module)
+          if (isModule) {
+            result.startcol = doc.fixStartcol(position, ['.'])
+          }
+          return result
+        })
+      }
+    }
   }
   oldConfig = getJavaConfiguration()
   let serverOptions
