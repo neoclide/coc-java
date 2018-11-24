@@ -11,6 +11,7 @@ import { awaitServerConnection, prepareExecutable } from './javaServerStarter'
 import { collectionJavaExtensions } from './plugin'
 import { ActionableNotification, ClassFileContentsRequest, CompileWorkspaceRequest, CompileWorkspaceStatus, ExecuteClientCommandRequest, FeatureStatus, MessageType, ProgressReportNotification, ProjectConfigurationUpdateRequest, SendNotificationRequest, StatusNotification } from './protocol'
 import { RequirementsData, resolveRequirements } from './requirements'
+import { fixComment } from './fixes'
 
 let oldConfig
 let languageClient: LanguageClient
@@ -284,6 +285,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
   context.subscriptions.push(
     services.registLanguageClient(languageClient)
   )
+  fixComment(context.subscriptions)
 }
 
 function logNotification(message: string, ..._items: string[]): void {
