@@ -60,7 +60,9 @@ function prepareParams(requirements: RequirementsData, javaConfiguration, worksp
 
   let vmargs = javaConfiguration.get('jdt.ls.vmargs', '')
   parseVMargs(params, vmargs)
-  let server_home: string = path.resolve(__dirname, '../server')
+  let server_home: string = javaConfiguration.get('jdt.ls.home', '')
+  server_home = server_home || path.resolve(__dirname, '../server')
+
   let launchersFound: Array<string> = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', { cwd: server_home })
   if (launchersFound.length) {
     params.push('-jar'); params.push(path.resolve(server_home, launchersFound[0]))

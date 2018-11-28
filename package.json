@@ -61,6 +61,12 @@
           "description": "Specifies extra VM arguments used to launch the Java Language Server. Eg. use `-noverify -Xmx1G  -XX:+UseG1GC -XX:+UseStringDeduplication` to bypass class verification, increase the heap size to 1GB and enable String deduplication with the G1 Garbage collector",
           "scope": "window"
         },
+        "java.jdt.ls.home": {
+          "type": "string",
+          "default": null,
+          "description": "Absolute path to eclipse.jdt.ls server home, which contains plugins folder. Bundled eclipse.jdt.ls is used by default.",
+          "scope": "window"
+        },
         "java.errors.incompleteClasspath.severity": {
           "type": [
             "string"
