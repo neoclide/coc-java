@@ -471,17 +471,32 @@ function isRemote(f): boolean {
 
 async function applyWorkspaceEdit(edit: WorkspaceEdit): Promise<void> {
   if (edit) {
+    edit = await fixWorkspaceEdit(edit)
     try {
       await workspace.applyEdit(edit)
     } catch (e) {
       workspace.showMessage(`applyEdit error: ${e.message}`, 'error')
       return
     }
-    let doc = await workspace.document
-    if (edit.changes && doc.uri == Object.keys(edit.changes)[0]) {
-      await workspace.nvim.call('CocAction', 'format')
+  }
+}
+
+async function fixWorkspaceEdit(edit: WorkspaceEdit): Promise<WorkspaceEdit> {
+  let { changes } = edit
+  if (!changes || Object.keys(changes).length == 0) return
+  let doc = await workspace.document
+  let opts = await workspace.getFormatOptions(doc.uri)
+  if (!opts.insertSpaces) return
+  for (let uri of Object.keys(changes)) {
+    let edits = changes[uri]
+    for (let ed of edits) {
+      if (ed.newText.startsWith('\t')) {
+        let ind = (new Array(opts.tabSize || 2)).fill(' ').join('')
+        ed.newText = ed.newText.split('\t').join(ind)
+      }
     }
   }
+  return edit
 }
 
 async function addFormatter(extensionPath, formatterUrl, defaultFormatter, relativePath): Promise<void> {
