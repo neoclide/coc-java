@@ -490,9 +490,9 @@ async function fixWorkspaceEdit(edit: WorkspaceEdit): Promise<WorkspaceEdit> {
   for (let uri of Object.keys(changes)) {
     let edits = changes[uri]
     for (let ed of edits) {
-      if (ed.newText.startsWith('\t')) {
+      if (ed.newText.indexOf('\t') !== -1) {
         let ind = (new Array(opts.tabSize || 2)).fill(' ').join('')
-        ed.newText = ed.newText.split('\t').join(ind)
+        ed.newText = ed.newText.replace(/\t/g, ind)
       }
     }
   }
