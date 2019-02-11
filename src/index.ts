@@ -156,33 +156,18 @@ export async function activate(context: ExtensionContext): Promise<void> {
       }
     })
     languageClient.onNotification(ActionableNotification.type, notification => {
-      let show = null
-      switch (notification.severity) {
-        case MessageType.Log:
-          show = logNotification
-          break
-        case MessageType.Info:
-          show = 'more'
-          break
-        case MessageType.Warning:
-          show = 'warning'
-          break
-        case MessageType.Error:
-          show = 'error'
-          break
-      }
-      if (!show) {
+      if (notification.severity == MessageType.Log) {
+        logNotification(notification.message)
         return
       }
       const titles = notification.commands.map(a => a.title)
-      show(notification.message, ...titles).then(selection => {
-        for (let action of notification.commands) {
-          if (action.title === selection) {
-            let args: any[] = (action.arguments) ? action.arguments : []
-            commands.executeCommand(action.command, ...args)
-            break
-          }
-        }
+      workspace.showQuickpick(titles).then(idx => {
+        if (idx == -1) return
+        let action = notification.commands[idx]
+        let args: any[] = (action.arguments) ? action.arguments : []
+        commands.executeCommand(action.command, ...args)
+      }, _e => {
+        // noop
       })
     })
     languageClient.onRequest(ExecuteClientCommandRequest.type, params => {
