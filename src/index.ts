@@ -161,7 +161,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
         return
       }
       const titles = notification.commands.map(a => a.title)
-      workspace.showQuickpick(titles).then(idx => {
+      workspace.showQuickpick(titles, notification.message).then(idx => {
         if (idx == -1) return
         let action = notification.commands[idx]
         let args: any[] = (action.arguments) ? action.arguments : []
