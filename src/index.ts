@@ -468,10 +468,10 @@ async function applyWorkspaceEdit(edit: WorkspaceEdit): Promise<void> {
 
 async function fixWorkspaceEdit(edit: WorkspaceEdit): Promise<WorkspaceEdit> {
   let { changes } = edit
-  if (!changes || Object.keys(changes).length == 0) return
+  if (!changes || Object.keys(changes).length == 0) return edit
   let doc = await workspace.document
   let opts = await workspace.getFormatOptions(doc.uri)
-  if (!opts.insertSpaces) return
+  if (!opts.insertSpaces) return edit
   for (let uri of Object.keys(changes)) {
     let edits = changes[uri]
     for (let ed of edits) {
