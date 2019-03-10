@@ -17,6 +17,7 @@
   },
   "bugs": "https://github.com/neoclide/coc-java/issues",
   "scripts": {
+    "update": "gulp download_server",
     "clean": "rimraf lib",
     "build": "tsc -p tsconfig.json",
     "prepare": "yarn clean && yarn build"

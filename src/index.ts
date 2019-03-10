@@ -106,7 +106,14 @@ export async function activate(context: ExtensionContext): Promise<void> {
           writer: socket,
           reader: socket
         }
-        return Promise.resolve(result)
+        return new Promise<any>((resolve, reject) => {
+          socket.on('connect', () => {
+            resolve(result)
+          })
+          socket.on('error', err => {
+            reject(err)
+          })
+        })
       }
     }
   } else {
