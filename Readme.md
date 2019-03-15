@@ -62,6 +62,7 @@ The following settings are supported:
 
 - `java.home` : Absolute path to JDK 8 home folder used to launch the Java Language Server. Requires coc server restart.
 - `java.jdt.ls.vmargs` : Extra VM arguments used to launch the Java Language Server. Requires coc server restart.
+- `java.jdt.ls.home` : Directory contains jdt.ls server, would be used instead of bundled server when specified.
 - `java.configuration.updateBuildConfiguration` : Specifies how modifications on build files update the Java classpath/configuration. Supported values are `disabled` (nothing happens), `interactive` (asks about updating on every modification), `automatic` (updating is automatically triggered).
 - `java.errors.incompleteClasspath.severity` : Specifies the severity of the message when the classpath is incomplete for a Java file. Supported values are `ignore`, `info`, `warning`, `error`.
 - `java.trace.server` : Traces the communication between VS Code and the Java language server.
@@ -90,4 +91,3 @@ The following settings are supported:
 # License
 
 EPL 1.0, See [LICENSE](LICENSE) for more information.
-
