@@ -9,6 +9,8 @@ export namespace Commands {
    */
   export const OPEN_BROWSER = 'vscode.open'
 
+  export const DOWNLOAD_SERVER = 'java.updateLanguageServer'
+
   /**
    * Open Output view
    */
@@ -47,7 +49,7 @@ export namespace Commands {
   /**
    * Reload VS Code window
    */
-  export const RELOAD_WINDOW = 'editor.action.restart'
+  export const RELOAD_WINDOW = 'workbench.action.reloadWindow'
 
   /**
    * Set project configuration update mode
@@ -75,10 +77,6 @@ export namespace Commands {
   export const OPEN_SERVER_LOG = 'java.open.serverLog'
 
   /**
-   * Organize Java file imports command from language server
-   */
-  export const EDIT_ORGANIZE_IMPORTS = 'java.edit.organizeImports'
-  /**
    * Open Java formatter settings
    */
   export const OPEN_FORMATTER = 'java.open.formatter.settings'
@@ -86,4 +84,36 @@ export namespace Commands {
    * Clean the Java language server workspace
    */
   export const CLEAN_WORKSPACE = 'java.clean.workspace'
+  /**
+   * Update the source attachment for the selected class file
+   */
+  export const UPDATE_SOURCE_ATTACHMENT = 'java.project.updateSourceAttachment'
+  /**
+   * Resolve the source attachment information for the selected class file
+   */
+  export const RESOLVE_SOURCE_ATTACHMENT = 'java.project.resolveSourceAttachment'
+  /**
+   * Mark the folder as the source root of the closest project.
+   */
+  export const ADD_TO_SOURCEPATH = 'java.project.addToSourcePath'
+  /**
+   * Unmark the folder as the source root of the project.
+   */
+  export const REMOVE_FROM_SOURCEPATH = 'java.project.removeFromSourcePath'
+  /**
+   * List all recognized source roots in the workspace.
+   */
+  export const LIST_SOURCEPATHS = 'java.project.listSourcePaths'
+  /**
+   * Override or implements the methods from the supertypes.
+   */
+  export const OVERRIDE_METHODS_PROMPT = 'java.action.overrideMethodsPrompt'
+  /**
+   * Generate hashCode() and equals().
+   */
+  export const HASHCODE_EQUALS_PROMPT = 'java.action.hashCodeEqualsPrompt'
+	/**
+     * Open settings.json
+     */
+  export const OPEN_JSON_SETTINGS = 'workbench.action.openSettingsJson'
 }

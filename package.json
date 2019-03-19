@@ -5,7 +5,7 @@
   "main": "lib/index.js",
   "publisher": "chemzqm",
   "engines": {
-    "coc": ">=0.0.28"
+    "coc": ">=0.0.58"
   },
   "keywords": [
     "coc.nvim",
@@ -29,9 +29,7 @@
     "onCommand:java.open.output",
     "onCommand:java.open.serverLog",
     "onCommand:java.execute.workspaceCommand",
-    "onCommand:java.projectConfiguration.update",
-    "workspaceContains:pom.xml",
-    "workspaceContains:build.gradle"
+    "onCommand:java.projectConfiguration.update"
   ],
   "contributes": {
     "snippets": [
@@ -82,6 +80,12 @@
           "description": "Specifies the severity of the message when the classpath is incomplete for a Java file",
           "scope": "window"
         },
+        "java.configuration.checkProjectSettingsExclusions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Checks if the extension-generated project settings files (.project, .classpath, .factorypath, .settings/) should be excluded from the file explorer.",
+          "scope": "window"
+        },
         "java.configuration.updateBuildConfiguration": {
           "type": [
             "string"
@@ -126,7 +130,7 @@
         },
         "java.signatureHelp.enabled": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Enable/disable the signature help.",
           "scope": "window"
         },
@@ -139,7 +143,7 @@
         "java.configuration.maven.userSettings": {
           "type": "string",
           "default": null,
-          "description": "Absolute path to Maven's settings.xml",
+          "description": "Path to Maven's settings.xml",
           "scope": "window"
         },
         "java.format.enabled": {
@@ -177,6 +181,13 @@
           "description": "Enable/disable the 'auto build'",
           "scope": "window"
         },
+        "java.maxConcurrentBuilds": {
+          "type": "integer",
+          "default": 1,
+          "description": "Max simultaneous project builds",
+          "scope": "window",
+          "minimum": 1
+        },
         "java.completion.enabled": {
           "type": "boolean",
           "default": true,
@@ -191,7 +202,7 @@
         },
         "java.completion.guessMethodArguments": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "When set to true, method arguments are guessed when a method is selected from as list of code assist proposals.",
           "scope": "window"
         },
@@ -204,7 +215,10 @@
             "org.junit.jupiter.api.Assertions.*",
             "org.junit.jupiter.api.Assumptions.*",
             "org.junit.jupiter.api.DynamicContainer.*",
-            "org.junit.jupiter.api.DynamicTest.*"
+            "org.junit.jupiter.api.DynamicTest.*",
+            "org.mockito.Mockito.*",
+            "org.mockito.ArgumentMatchers.*",
+            "org.mockito.Answers.*"
           ],
           "scope": "window"
         },
@@ -248,6 +262,30 @@
           "description": "Enable/disable automatic block formatting when typing `;`, `<enter>` or `}`",
           "default": true,
           "scope": "window"
+        },
+        "java.codeGeneration.hashCodeEquals.useJava7Objects": {
+          "type": "boolean",
+          "description": "Use Objects.hash and Objects.equals when generating the hashCode and equals methods. This setting only applies to Java 7 and higher.",
+          "default": false,
+          "scope": "window"
+        },
+        "java.codeGeneration.hashCodeEquals.useInstanceof": {
+          "type": "boolean",
+          "description": "Use 'instanceof' to compare types when generating the hashCode and equals methods.",
+          "default": false,
+          "scope": "window"
+        },
+        "java.codeGeneration.hashCodeEquals.useBlocks": {
+          "type": "boolean",
+          "description": "Use blocks in 'if' statements when generating the hashCode and equals methods.",
+          "default": false,
+          "scope": "window"
+        },
+        "java.codeGeneration.hashCodeEquals.generateComments": {
+          "type": "boolean",
+          "description": "Generate method comments when generating the hashCode and equals methods.",
+          "default": false,
+          "scope": "window"
         }
       }
     },
@@ -288,28 +326,38 @@
   "license": "EPL-1.0",
   "devDependencies": {
     "@chemzqm/tsconfig": "^0.0.3",
-    "@chemzqm/tslint-config": "^1.0.17",
+    "@chemzqm/tslint-config": "^1.0.18",
     "@types/glob": "7.1.1",
-    "@types/mocha": "^5.2.5",
-    "@types/node": "^10.12.9",
-    "coc.nvim": "^0.0.32",
+    "@types/got": "^9.4.1",
+    "@types/mkdirp": "^0.5.2",
+    "@types/mocha": "^5.2.6",
+    "@types/node": "^11.11.3",
+    "@types/tunnel": "^0.0.0",
+    "coc.nvim": "^0.0.58",
     "gulp": "^4.0.0",
     "gulp-decompress": "2.0.2",
     "gulp-download": "0.0.1",
-    "gulp-tslint": "^8.1.3",
-    "mocha": "^5.2.0",
-    "rimraf": "^2.6.2",
-    "tslint": "^5.11.0",
-    "typescript": "^3.1.6"
+    "gulp-tslint": "^8.1.4",
+    "mocha": "^6.0.2",
+    "rimraf": "^2.6.3",
+    "tslint": "^5.14.0",
+    "typescript": "^3.3.3333"
   },
   "dependencies": {
+    "compressing": "^1.4.0",
+    "decompress": "^4.2.0",
     "expand-home-dir": "^0.0.3",
     "find-java-home": "0.2.0",
     "glob": "^7.1.3",
+    "got": "^9.6.0",
+    "install": "^0.12.2",
+    "mkdirp": "^0.5.1",
+    "npm": "^6.9.0",
     "path-exists": "^3.0.0",
     "tmp": "^0.0.33",
     "tslib": "^1.9.3",
-    "vscode-languageserver-protocol": "^3.13.0",
+    "tunnel": "^0.0.6",
+    "vscode-languageserver-protocol": "^3.15.0-next.1",
     "vscode-uri": "^1.0.6"
   }
 }

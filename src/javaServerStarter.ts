@@ -3,19 +3,19 @@ import * as path from 'path'
 import * as net from 'net'
 import * as glob from 'glob'
 import { StreamInfo, Executable } from 'coc.nvim'
-import { RequirementsData } from './requirements'
+import { RequirementsData, ServerConfiguration } from './requirements'
 
 declare var v8debug
 const DEBUG = (typeof v8debug === 'object') || startedInDebugMode()
 
-export function prepareExecutable(requirements: RequirementsData, workspacePath, javaConfig): Executable {
+export function prepareExecutable(requirements: RequirementsData, workspacePath, config: ServerConfiguration): Executable {
   let executable: Executable = Object.create(null)
   let options = Object.create(null)
   options.env = process.env
   options.stdio = 'pipe'
   executable.options = options
   executable.command = path.resolve(requirements.java_home + '/bin/java')
-  executable.args = prepareParams(requirements, javaConfig, workspacePath)
+  executable.args = prepareParams(requirements, config, workspacePath)
   return executable
 }
 
@@ -36,8 +36,7 @@ export function awaitServerConnection(port): Thenable<StreamInfo> {
   })
 }
 
-
-function prepareParams(requirements: RequirementsData, javaConfiguration, workspacePath): string[] {
+function prepareParams(requirements: RequirementsData, config: ServerConfiguration, workspacePath: string): string[] {
   let params: string[] = []
   if (DEBUG) {
     params.push('-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1044,quiet=y')
@@ -51,47 +50,52 @@ function prepareParams(requirements: RequirementsData, javaConfiguration, worksp
       '--add-opens',
       'java.base/java.lang=ALL-UNNAMED')
   }
+
   params.push('-Declipse.application=org.eclipse.jdt.ls.core.id1',
     '-Dosgi.bundles.defaultStartLevel=4',
     '-Declipse.product=org.eclipse.jdt.ls.core.product')
   if (DEBUG) {
     params.push('-Dlog.level=ALL')
   }
+  let { vmargs, root } = config
+  const encodingKey = '-Dfile.encoding='
+  if (vmargs.indexOf(encodingKey) < 0) {
+    params.push(encodingKey + config.encoding)
+  }
+  const watchParentProcess = '-DwatchParentProcess='
+  if (vmargs.indexOf(watchParentProcess) < 0) {
+    params.push(watchParentProcess + 'false')
+  }
 
-  let vmargs = javaConfiguration.get('jdt.ls.vmargs', '')
   parseVMargs(params, vmargs)
-  let server_home: string = javaConfiguration.get('jdt.ls.home', '')
-  server_home = server_home || path.resolve(__dirname, '../server')
-
-  let launchersFound: Array<string> = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', { cwd: server_home })
+  let launchersFound: string[] = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', { cwd: root })
   if (launchersFound.length) {
-    params.push('-jar'); params.push(path.resolve(server_home, launchersFound[0]))
+    params.push('-jar'); params.push(path.resolve(root, launchersFound[0]))
   } else {
     return null
   }
 
-  //select configuration directory according to OS
+  // select configuration directory according to OS
   let configDir = 'config_win'
   if (process.platform === 'darwin') {
     configDir = 'config_mac'
   } else if (process.platform === 'linux') {
     configDir = 'config_linux'
   }
-  params.push('-configuration'); params.push(path.resolve(__dirname, '../server', configDir))
+  params.push('-configuration'); params.push(path.join(root, configDir))
   params.push('-data'); params.push(workspacePath)
   return params
 }
 
-
 function startedInDebugMode(): boolean {
   let args = (process as any).execArgv
   if (args) {
-    return args.some((arg) => /^--debug=?/.test(arg) || /^--debug-brk=?/.test(arg) || /^--inspect-brk=?/.test(arg))
+    return args.some(arg => /^--debug=?/.test(arg) || /^--debug-brk=?/.test(arg) || /^--inspect-brk=?/.test(arg))
   }
   return false
 }
 
-//exported for tests
+// exported for tests
 export function parseVMargs(params: any[], vmargsLine: string) {
   if (!vmargsLine) {
     return
@@ -101,9 +105,9 @@ export function parseVMargs(params: any[], vmargsLine: string) {
     return
   }
   vmargs.forEach(arg => {
-    //remove all standalone double quotes
-    arg = arg.replace(/(\\)?"/g, function($0, $1) { return ($1 ? $0 : ''); })
-    //unescape all escaped double quotes
+    // remove all standalone double quotes
+    arg = arg.replace(/(\\)?"/g, function($0, $1) { return ($1 ? $0 : '') })
+    // unescape all escaped double quotes
     arg = arg.replace(/(\\)"/g, '"')
     if (params.indexOf(arg) < 0) {
       params.push(arg)

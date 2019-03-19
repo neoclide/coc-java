@@ -11,6 +11,12 @@ import Uri from 'vscode-uri'
 const isWindows = process.platform.indexOf('win') === 0
 const JAVAC_FILENAME = 'javac' + (isWindows ? '.exe' : '')
 
+export interface ServerConfiguration {
+  root: string
+  encoding: string
+  vmargs: string
+}
+
 export interface RequirementsData {
   java_home: string
   java_version: number
@@ -33,7 +39,7 @@ export interface ErrorData {
 export async function resolveRequirements(): Promise<RequirementsData> {
   let java_home = await checkJavaRuntime()
   let javaVersion = await checkJavaVersion(java_home)
-  return Promise.resolve({ 'java_home': java_home, 'java_version': javaVersion })
+  return Promise.resolve({ java_home, java_version: javaVersion })
 }
 
 function checkJavaRuntime(): Promise<string> {
@@ -61,8 +67,8 @@ function checkJavaRuntime(): Promise<string> {
       }
       return resolve(javaHome)
     }
-    //No settings, let's try to detect as last resort.
-    findJavaHome(function(err, home) {
+    // No settings, let's try to detect as last resort.
+    findJavaHome((err, home) => {
       if (err) {
         openJDKDownload(reject, 'Java runtime could not be located')
       }
@@ -98,22 +104,22 @@ export function parseMajorVersion(content: string): number {
     return 0
   }
   let version = match[1]
-  //Ignore '1.' prefix for legacy Java versions
+  // Ignore '1.' prefix for legacy Java versions
   if (version.startsWith('1.')) {
     version = version.substring(2)
   }
 
-  //look into the interesting bits now
+  // look into the interesting bits now
   regexp = /\d+/g
   match = regexp.exec(version)
   let javaVersion = 0
   if (match) {
-    javaVersion = parseInt(match[0])
+    javaVersion = parseInt(match[0], 10)
   }
   return javaVersion
 }
 
-function openJDKDownload(reject, cause) {
+function openJDKDownload(reject, cause): void {
   let jdkUrl = 'https://developers.redhat.com/products/openjdk/download/?sc_cid=701f2000000RWTnAAO'
   if (process.platform === 'darwin') {
     jdkUrl = 'http://www.oracle.com/technetwork/java/javase/downloads/index.html'

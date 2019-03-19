@@ -1,23 +1,36 @@
-import { commands, CompletionContext, ExtensionContext, LanguageClient, LanguageClientOptions, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import { commands, CompletionContext, ExtensionContext, LanguageClient, LanguageClientOptions, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, workspace } from 'coc.nvim'
 import * as fs from 'fs'
+import mkdirp from 'mkdirp'
 import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
-import { CancellationToken, CompletionItem, CompletionItemKind, CompletionList, Disposable, ExecuteCommandParams, ExecuteCommandRequest, Location, Position, TextDocument, WorkspaceEdit } from 'vscode-languageserver-protocol'
+import * as glob from 'glob'
+import { CancellationToken, CompletionItem, CompletionItemKind, CompletionList, ExecuteCommandParams, ExecuteCommandRequest, Location, Position, TextDocument, WorkspaceEdit } from 'vscode-languageserver-protocol'
 import Uri from 'vscode-uri'
 import { Commands } from './commands'
+import { downloadServer } from './downloader'
 import { ExtensionAPI } from './extension.api'
+import { fixComment } from './fixes'
+import { registerCommands } from './buildpath'
 import { awaitServerConnection, prepareExecutable } from './javaServerStarter'
 import { collectionJavaExtensions } from './plugin'
 import { ActionableNotification, ClassFileContentsRequest, CompileWorkspaceRequest, CompileWorkspaceStatus, ExecuteClientCommandRequest, FeatureStatus, MessageType, ProgressReportNotification, ProjectConfigurationUpdateRequest, SendNotificationRequest, StatusNotification } from './protocol'
-import { RequirementsData, resolveRequirements } from './requirements'
-import { fixComment } from './fixes'
+import { RequirementsData, resolveRequirements, ServerConfiguration } from './requirements'
 
-let oldConfig
 let languageClient: LanguageClient
 const cleanWorkspaceFileName = '.cleanWorkspace'
 
 export async function activate(context: ExtensionContext): Promise<void> {
+  let javaConfig = workspace.getConfiguration('java')
+  let server_home: string = javaConfig.get('jdt.ls.home', '')
+  if (server_home) {
+    let launchersFound: string[] = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', { cwd: server_home })
+    if (launchersFound.length == 0) {
+      workspace.showMessage(`Launcher jar not found in jdt.ls.home: "${server_home}"`, 'error')
+      return
+    }
+  }
+  // let server
   let requirements: RequirementsData
   try {
     requirements = await resolveRequirements()
@@ -28,14 +41,41 @@ export async function activate(context: ExtensionContext): Promise<void> {
     }
     return
   }
+  if (!server_home) {
+    server_home = path.join(context.storagePath, 'server')
+    if (!fs.existsSync(server_home)) {
+      mkdirp.sync(server_home)
+    }
+    let launchersFound: string[] = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', { cwd: server_home })
+    if (launchersFound.length == 0) {
+      workspace.showMessage('jdt.ls not found, downloading...')
+      downloadServer(server_home).then(() => {
+        workspace.showMessage('jdt.ls downloaded')
+        start(server_home, requirements, context).catch(e => {
+          console.error(e)
+        })
+      }, e => {
+        workspace.showMessage(`jdt.ls download failed: ${e.message}`, 'error')
+      })
+    } else {
+      start(server_home, requirements, context).catch(e => {
+        console.error(e)
+      })
+    }
+  } else {
+    start(server_home, requirements, context).catch(e => {
+      console.error(e)
+    })
+  }
+}
 
+async function start(server_home: string, requirements: RequirementsData, context: ExtensionContext): Promise<void> {
+  let javaConfig = workspace.getConfiguration('java')
   let progressItem = workspace.createStatusBarItem(9, { progress: true })
   progressItem.text = 'jdt starting'
   progressItem.show()
-
   let storagePath = getTempWorkspace()
   let workspacePath = path.resolve(storagePath + '/jdt_ws')
-
   // Options to control the language client
   let clientOptions: LanguageClientOptions = {
     // Register the server for java
@@ -60,9 +100,9 @@ export async function activate(context: ExtensionContext): Promise<void> {
     initializationOptions: {
       bundles: collectionJavaExtensions(),
       workspaceFolders: null,
-      settings: { java: getJavaConfiguration() },
+      settings: { java: javaConfig },
       extendedClientCapabilities: {
-        progressReportProvider: getJavaConfiguration().get<boolean>('progressReports.enabled'),
+        progressReportProvider: javaConfig.get<boolean>('progressReports.enabled'),
         classFileContentsSupport: true
       }
     },
@@ -92,14 +132,20 @@ export async function activate(context: ExtensionContext): Promise<void> {
       }
     }
   }
-  oldConfig = getJavaConfiguration()
+  let encoding = await workspace.nvim.eval('&fileencoding') as string
+  let serverConfig: ServerConfiguration = {
+    root: server_home,
+    encoding,
+    vmargs: javaConfig.get<string>('jdt.ls.vmargs', '')
+  }
   let serverOptions
   let port = process.env['SERVER_PORT']
   if (!port) {
     let lsPort = process.env['JDTLS_CLIENT_PORT']
     if (!lsPort) {
-      serverOptions = prepareExecutable(requirements, workspacePath, getJavaConfiguration())
+      serverOptions = prepareExecutable(requirements, workspacePath, serverConfig)
     } else {
+      workspace.showMessage(`Lanuching jdt.ls from $JDTLS_CLIENT_PORT: ${port}`, 'warning')
       serverOptions = () => {
         let socket = net.connect(lsPort)
         let result: StreamInfo = {
@@ -117,6 +163,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
       }
     }
   } else {
+    workspace.showMessage(`Lanuching client with $SERVER_PORT: ${port}`, 'warning')
     // used during development
     serverOptions = awaitServerConnection.bind(null, port)
   }
@@ -185,6 +232,8 @@ export async function activate(context: ExtensionContext): Promise<void> {
       return commands.executeCommand(params.command, ...params.arguments)
     })
 
+    registerCommands(context)
+
     commands.registerCommand(Commands.OPEN_OUTPUT, () => {
       languageClient.outputChannel.show()
     })
@@ -205,17 +254,16 @@ export async function activate(context: ExtensionContext): Promise<void> {
 
     commands.registerCommand(Commands.PROJECT_CONFIGURATION_STATUS, (uri, status) => setProjectConfigurationUpdate(languageClient, uri, status), null, true)
 
-    commands.registerCommand(Commands.APPLY_WORKSPACE_EDIT, obj => {
-      // tslint:disable-next-line:no-floating-promises
-      applyWorkspaceEdit(obj)
+    commands.registerCommand(Commands.APPLY_WORKSPACE_EDIT, async obj => {
+      await applyWorkspaceEdit(obj)
     }, null, true)
 
-    commands.registerCommand(Commands.EDIT_ORGANIZE_IMPORTS, async () => {
-      let document = await workspace.document
-      if (document.filetype !== 'java') {
-        return
+    commands.registerCommand(Commands.DOWNLOAD_SERVER, async () => {
+      let server_home = path.join(context.storagePath, 'server')
+      if (!fs.existsSync(server_home)) {
+        mkdirp.sync(server_home)
       }
-      commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.EDIT_ORGANIZE_IMPORTS, document.uri)
+      await downloadServer(server_home)
     })
 
     commands.registerCommand(Commands.EXECUTE_WORKSPACE_COMMAND, (command, ...rest) => {
@@ -273,7 +321,6 @@ export async function activate(context: ExtensionContext): Promise<void> {
   let extensionPath = context.extensionPath
   commands.registerCommand(Commands.OPEN_FORMATTER, async () => openFormatter(extensionPath))
   commands.registerCommand(Commands.CLEAN_WORKSPACE, () => cleanWorkspace(workspacePath))
-  context.subscriptions.push(onConfigurationChange())
   context.subscriptions.push(
     services.registLanguageClient(languageClient)
   )
@@ -286,7 +333,7 @@ function logNotification(message: string, ..._items: string[]): void {
 }
 
 function setIncompleteClasspathSeverity(severity: string): void {
-  const config = getJavaConfiguration()
+  const config = workspace.getConfiguration('java')
   const section = 'errors.incompleteClasspath.severity'
   config.update(section, severity, true)
   // tslint:disable-next-line:no-console
@@ -311,7 +358,7 @@ async function projectConfigurationUpdate(languageClient: LanguageClient, uri?: 
 }
 
 function setProjectConfigurationUpdate(languageClient: LanguageClient, uri: Uri, status: FeatureStatus): void {
-  const config = getJavaConfiguration()
+  const config = workspace.getConfiguration('java')
   const section = 'configuration.updateBuildConfiguration'
   const st = FeatureStatus[status]
   config.update(section, st)
@@ -325,32 +372,6 @@ function setProjectConfigurationUpdate(languageClient: LanguageClient, uri: Uri,
 
 function isJavaConfigFile(path: String): boolean {
   return path.endsWith('pom.xml') || path.endsWith('.gradle')
-}
-
-function onConfigurationChange(): Disposable {
-  return workspace.onDidChangeConfiguration(async _params => {
-    let newConfig = getJavaConfiguration()
-    if (hasJavaConfigChanged(oldConfig, newConfig)) {
-      let msg = 'Java Language Server configuration changed, please restart VS Code.'
-      let action = 'Restart Now'
-      let restartId = Commands.RELOAD_WINDOW
-      oldConfig = newConfig
-      let res = await workspace.showPrompt(`${msg}, ${action}?`)
-      if (res) {
-        commands.executeCommand(restartId)
-      }
-    }
-  })
-}
-
-function hasJavaConfigChanged(oldConfig, newConfig): boolean {
-  return hasConfigKeyChanged('home', oldConfig, newConfig)
-    || hasConfigKeyChanged('jdt.ls.vmargs', oldConfig, newConfig)
-    || hasConfigKeyChanged('progressReports.enabled', oldConfig, newConfig)
-}
-
-function hasConfigKeyChanged(key, oldConfig, newConfig): boolean {
-  return oldConfig.get(key) !== newConfig.get(key)
 }
 
 function getTempWorkspace(): string {
@@ -367,16 +388,12 @@ function makeRandomHexString(length): string {
   return result
 }
 
-function getJavaConfiguration(): WorkspaceConfiguration {
-  return workspace.getConfiguration('java')
-}
-
 async function cleanWorkspace(workspacePath): Promise<void> {
   let res = await workspace.showPrompt('Are you sure you want to clean the Java language server workspace?')
   if (res) {
     const file = path.join(workspacePath, cleanWorkspaceFileName)
     fs.closeSync(fs.openSync(file, 'w'))
-    commands.executeCommand(Commands.RELOAD_WINDOW)
+    workspace.nvim.command('CocRestart', true)
   }
 }
 
@@ -405,7 +422,7 @@ async function openServerLogFile(workspacePath: string): Promise<boolean> {
 
 async function openFormatter(extensionPath): Promise<void> {
   let defaultFormatter = path.join(extensionPath, 'formatters', 'eclipse-formatter.xml')
-  let formatterUrl: string = getJavaConfiguration().get('format.settings.url')
+  let formatterUrl: string = workspace.getConfiguration('java').get('format.settings.url')
   if (formatterUrl && formatterUrl.length > 0) {
     if (isRemote(formatterUrl)) {
       commands.executeCommand(Commands.OPEN_BROWSER, Uri.parse(formatterUrl))
@@ -429,7 +446,7 @@ async function openFormatter(extensionPath): Promise<void> {
     await addFormatter(extensionPath, file, defaultFormatter, relativePath)
   } else {
     if (formatterUrl) {
-      getJavaConfiguration().update('format.settings.url', (relativePath !== null ? relativePath : file), global)
+      workspace.getConfiguration('java').update('format.settings.url', (relativePath !== null ? relativePath : file), global)
       await openDocument(extensionPath, file, file, defaultFormatter)
     } else {
       await addFormatter(extensionPath, file, defaultFormatter, relativePath)
@@ -495,9 +512,10 @@ async function addFormatter(extensionPath, formatterUrl, defaultFormatter, relat
   let value = relativePath ? relativePath : formatterUrl
   let f = await workspace.nvim.call('input', ['please enter URL or Path:', value])
   let global = true
+  let javaConfig = workspace.getConfiguration('java')
   if (isRemote(f)) {
     commands.executeCommand(Commands.OPEN_BROWSER, Uri.parse(f))
-    getJavaConfiguration().update('format.settings.url', f, global)
+    javaConfig.update('format.settings.url', f, global)
   } else {
     if (!path.isAbsolute(f)) {
       let fileName = f
@@ -509,7 +527,7 @@ async function addFormatter(extensionPath, formatterUrl, defaultFormatter, relat
     } else {
       relativePath = null
     }
-    getJavaConfiguration().update('format.settings.url', (relativePath !== null ? relativePath : f), global)
+    javaConfig.update('format.settings.url', (relativePath !== null ? relativePath : f), global)
 
     if (!fs.existsSync(f)) {
       let name = relativePath !== null ? relativePath : f
