@@ -5,7 +5,6 @@ works with [coc.nvim](https://github.com/neoclide/coc.nvim).
 
 # Quick Start
 
-- Install [coc.nvim](https://github.com/neoclide/coc.nvim)
 - Install this extension by run command:
 
   ```
@@ -14,9 +13,9 @@ works with [coc.nvim](https://github.com/neoclide/coc.nvim).
 
 - `jdt` uri is supported automatically
 
-# Features
+**Note**: this extension would download latest [jdt.ls](https://github.com/eclipse/eclipse.jdt.ls) for you when not found.
 
-![ screencast ](https://raw.githubusercontent.com/redhat-developer/vscode-java/master/images/vscode-java.0.0.1.gif)
+# Features
 
 - Maven pom.xml project support
 - Basic Gradle Java project support
@@ -49,12 +48,13 @@ The path to the Java Development Kit is searched in the following order:
 
 The following commands are available:
 
-- `Java:Update Project configuration`: is available when the editor is focused on a Maven pom.xml or a Gradle file. It forces project configuration / classpath updates (eg. dependency changes or Java compilation level), according to the project build descriptor.
-- `Java:Open Java Language Server log file`: opens the Java Language Server log file, useful for troubleshooting problems.
-- `Java:Force Java compilation`: manually triggers compilation of the workspace.
-- `Java:Organize imports`: Organize imports in the currently opened Java file.
-- `Java:Open Java formatter settings`: Open the Eclipse formatter settings. Creates a new settings file if none exists.
-- `Java:Clean the Java language server workspace`: Clean the Java language server workspace.
+- `java.updateLanguageServer`: download latest [jdt.ls](https://github.com/eclipse/eclipse.jdt.ls) from [eclipse.org](https://download.eclipse.org/jdtls/snapshots/?d).
+- `java.projectConfiguration.update`: is available when the editor is focused on a Maven pom.xml or a Gradle file. It forces project configuration / classpath updates (eg. dependency changes or Java compilation level), according to the project build descriptor.
+- `java.open.serverLog`: opens the Java Language Server log file, useful for troubleshooting problems.
+- `java.workspace.compile`: manually triggers compilation of the workspace.
+- `java.edit.organizeImports`: Organize imports in the currently opened Java file.
+- `java.open.formatter.settings`: Open the Eclipse formatter settings. Creates a new settings file if none exists.
+- `java.clean.workspace`: Clean the Java language server workspace.
 
 # Supported settings
 

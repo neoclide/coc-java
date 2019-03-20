@@ -1,4 +1,5 @@
 
+import os from 'os'
 import * as path from 'path'
 import * as net from 'net'
 import * as glob from 'glob'
@@ -62,9 +63,11 @@ function prepareParams(requirements: RequirementsData, config: ServerConfigurati
   if (vmargs.indexOf(encodingKey) < 0) {
     params.push(encodingKey + config.encoding)
   }
-  const watchParentProcess = '-DwatchParentProcess='
-  if (vmargs.indexOf(watchParentProcess) < 0) {
-    params.push(watchParentProcess + 'false')
+  if (os.platform() == 'win32') {
+    const watchParentProcess = '-DwatchParentProcess='
+    if (vmargs.indexOf(watchParentProcess) < 0) {
+      params.push(watchParentProcess + 'false')
+    }
   }
 
   parseVMargs(params, vmargs)
@@ -96,7 +99,7 @@ function startedInDebugMode(): boolean {
 }
 
 // exported for tests
-export function parseVMargs(params: any[], vmargsLine: string) {
+export function parseVMargs(params: any[], vmargsLine: string): void {
   if (!vmargsLine) {
     return
   }

@@ -1,6 +1,6 @@
 'use strict'
 
-import { RequestType, Command, NotificationType, TextDocumentIdentifier, ExecuteCommandParams } from 'vscode-languageserver-protocol'
+import { RequestType, Command, NotificationType, TextDocumentIdentifier, ExecuteCommandParams, CodeActionParams, WorkspaceEdit } from 'vscode-languageserver-protocol'
 
 /**
  * The message type. Copied from vscode protocol
@@ -99,7 +99,76 @@ export namespace ExecuteClientCommandRequest {
   export const type = new RequestType<ExecuteCommandParams, any, void, void>('workspace/executeClientCommand')
 }
 
-
 export namespace SendNotificationRequest {
   export const type = new RequestType<ExecuteCommandParams, any, void, void>('workspace/notify')
+}
+
+export interface SourceAttachmentRequest {
+  classFileUri: string
+  attributes?: SourceAttachmentAttribute
+}
+
+export interface SourceAttachmentResult {
+  errorMessage?: string
+  attributes?: SourceAttachmentAttribute
+}
+
+export interface SourceAttachmentAttribute {
+  jarPath?: string
+  sourceAttachmentPath?: string
+  sourceAttachmentEncoding?: string
+  canEditEncoding?: boolean
+}
+
+export interface OverridableMethod {
+  key: string
+  name: string
+  parameters: string[]
+  unimplemented: boolean
+  declaringClass: string
+  declaringClassType: string
+}
+
+export interface OverridableMethodsResponse {
+  type: string
+  methods: OverridableMethod[]
+}
+
+export namespace ListOverridableMethodsRequest {
+  export const type = new RequestType<CodeActionParams, OverridableMethodsResponse, void, void>('java/listOverridableMethods')
+}
+
+export interface AddOverridableMethodParams {
+  context: CodeActionParams
+  overridableMethods: OverridableMethod[]
+}
+
+export namespace AddOverridableMethodsRequest {
+  export const type = new RequestType<AddOverridableMethodParams, WorkspaceEdit, void, void>('java/addOverridableMethods')
+}
+
+export interface VariableField {
+  bindingKey: string
+  name: string
+  type: string
+}
+
+export interface CheckHashCodeEqualsResponse {
+  type: string
+  fields: VariableField[]
+  existingMethods: string[]
+}
+
+export namespace CheckHashCodeEqualsStatusRequest {
+  export const type = new RequestType<CodeActionParams, CheckHashCodeEqualsResponse, void, void>('java/checkHashCodeEqualsStatus')
+}
+
+export interface GenerateHashCodeEqualsParams {
+  context: CodeActionParams
+  fields: VariableField[]
+  regenerate: boolean
+}
+
+export namespace GenerateHashCodeEqualsRequest {
+  export const type = new RequestType<GenerateHashCodeEqualsParams, WorkspaceEdit, void, void>('java/generateHashCodeEquals')
 }

@@ -152,12 +152,6 @@
           "description": "Enable/disable default Java formatter",
           "scope": "window"
         },
-        "java.saveActions.organizeImports": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable/disable auto organize imports on save action",
-          "scope": "window"
-        },
         "java.import.exclusions": {
           "type": "array",
           "description": "Configure glob patterns for excluding folders",
@@ -290,6 +284,11 @@
       }
     },
     "commands": [
+      {
+        "command": "java.updateLanguageServer",
+        "title": "Download latest snapshots of jdt.ls from eclipse.org.",
+        "category": "Java"
+      },
       {
         "command": "java.projectConfiguration.update",
         "title": "Update project configuration",
