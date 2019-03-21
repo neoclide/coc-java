@@ -5,7 +5,7 @@ import { workspace } from 'coc.nvim'
 
 export async function downloadServer(root: string): Promise<void> {
   let statusItem = workspace.createStatusBarItem(0, { progress: true })
-  statusItem.text = 'Downloading jdt.ls from eclipse.org: 0%'
+  statusItem.text = 'Downloading jdt.ls from eclipse.org'
   statusItem.show()
   let config = workspace.getConfiguration('http')
   let proxy = config.get<string>('proxy', '')
@@ -25,7 +25,7 @@ export async function downloadServer(root: string): Promise<void> {
     let stream = got.stream('http://download.eclipse.org/jdtls/snapshots/jdt-language-server-latest.tar.gz', options)
       .on('downloadProgress', progress => {
         let p = (progress.percent * 100).toFixed(0)
-        statusItem.text = `Downloading jdt.ls from eclipse.org: ${p}%`
+        statusItem.text = `${p}% Downloading jdt.ls from eclipse.org`
       })
     compressing.tgz.uncompress(stream as any, root)
       .then(() => {

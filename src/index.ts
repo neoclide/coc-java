@@ -8,6 +8,7 @@ import * as os from 'os'
 import * as path from 'path'
 import { CancellationToken, CompletionItem, CompletionItemKind, CompletionList, Emitter, ExecuteCommandParams, ExecuteCommandRequest, Location, Position, TextDocument, WorkspaceEdit } from 'vscode-languageserver-protocol'
 import Uri from 'vscode-uri'
+import rimraf from 'rimraf'
 import * as buildpath from './buildpath'
 import { Commands } from './commands'
 import { downloadServer } from './downloader'
@@ -80,301 +81,307 @@ async function start(server_home: string, requirements: RequirementsData, contex
     let launchersFound: string[] = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', { cwd: server_home })
     if (launchersFound.length == 0) {
       workspace.showMessage('jdt.ls not found, downloading...')
-      await downloadServer(server_home)
+      try {
+        await downloadServer(server_home)
+      } catch (e) {
+        workspace.showMessage('Download jdt.ls failed, you can download it at https://download.eclipse.org/jdtls/snapshots/?d')
+        rimraf.sync(`${server_home}/*`)
+        return
+      }
       workspace.showMessage('jdt.ls downloaded')
     }
+  }
 
-    let javaConfig = workspace.getConfiguration('java')
-    let progressItem = workspace.createStatusBarItem(0, { progress: true })
-    progressItem.text = 'jdt starting'
-    progressItem.show()
-    let rootPath = await findRoot()
+  let javaConfig = workspace.getConfiguration('java')
+  let progressItem = workspace.createStatusBarItem(0, { progress: true })
+  progressItem.text = 'jdt starting'
+  progressItem.show()
+  let rootPath = await findRoot()
 
-    // Options to control the language client
-    let clientOptions: LanguageClientOptions = {
-      // Register the server for java
-      documentSelector: [
-        { scheme: 'file', language: 'java' },
-        { scheme: 'jdt', language: 'java' },
-        { scheme: 'untitled', language: 'java' }
+  // Options to control the language client
+  let clientOptions: LanguageClientOptions = {
+    // Register the server for java
+    documentSelector: [
+      { scheme: 'file', language: 'java' },
+      { scheme: 'jdt', language: 'java' },
+      { scheme: 'untitled', language: 'java' }
+    ],
+    synchronize: {
+      configurationSection: 'java',
+      // Notify the server about file changes to .java and project/build files contained in the workspace
+      fileEvents: [
+        workspace.createFileSystemWatcher('**/*.java'),
+        workspace.createFileSystemWatcher('**/pom.xml'),
+        workspace.createFileSystemWatcher('**/*.gradle'),
+        workspace.createFileSystemWatcher('**/.project'),
+        workspace.createFileSystemWatcher('**/.classpath'),
+        workspace.createFileSystemWatcher('**/settings/*.prefs'),
+        workspace.createFileSystemWatcher('**/src/**')
       ],
-      synchronize: {
-        configurationSection: 'java',
-        // Notify the server about file changes to .java and project/build files contained in the workspace
-        fileEvents: [
-          workspace.createFileSystemWatcher('**/*.java'),
-          workspace.createFileSystemWatcher('**/pom.xml'),
-          workspace.createFileSystemWatcher('**/*.gradle'),
-          workspace.createFileSystemWatcher('**/.project'),
-          workspace.createFileSystemWatcher('**/.classpath'),
-          workspace.createFileSystemWatcher('**/settings/*.prefs'),
-          workspace.createFileSystemWatcher('**/src/**')
-        ],
+    },
+    initializationOptions: {
+      bundles: collectionJavaExtensions(),
+      workspaceFolders: [Uri.file(rootPath).toString()],
+      settings: { java: javaConfig },
+      extendedClientCapabilities: {
+        progressReportProvider: javaConfig.get<boolean>('progressReports.enabled'),
+        classFileContentsSupport: true,
+        overrideMethodsPromptSupport: true,
+        hashCodeEqualsPromptSupport: true
       },
-      initializationOptions: {
-        bundles: collectionJavaExtensions(),
-        workspaceFolders: [Uri.file(rootPath).toString()],
-        settings: { java: javaConfig },
-        extendedClientCapabilities: {
-          progressReportProvider: javaConfig.get<boolean>('progressReports.enabled'),
-          classFileContentsSupport: true,
-          overrideMethodsPromptSupport: true,
-          hashCodeEqualsPromptSupport: true
-        },
-        triggerFiles: getTriggerFiles()
-      },
-      workspaceFolder: {
-        uri: Uri.file(rootPath).toString(),
-        name: path.basename(rootPath)
-      },
-      revealOutputChannelOn: RevealOutputChannelOn.Never,
-      middleware: {
-        provideCompletionItem: (
-          document: TextDocument,
-          position: Position,
-          context: CompletionContext,
-          token: CancellationToken,
-          next: ProvideCompletionItemsSignature
-        ): ProviderResult<CompletionItem[] | CompletionList> => {
-          return Promise.resolve(next(document, position, context, token)).then((res: CompletionItem[] | CompletionList) => {
-            let doc = workspace.getDocument(document.uri)
-            if (!doc) return []
-            let items: CompletionItem[] = res.hasOwnProperty('isIncomplete') ? (res as CompletionList).items : res as CompletionItem[]
-            let result: any = {
-              isIncomplete: res.hasOwnProperty('isIncomplete') ? (res as CompletionList).isIncomplete : false,
-              items
-            }
-            let isModule = items.length > 0 && items.every(o => o.kind == CompletionItemKind.Module)
-            if (isModule) result.startcol = doc.fixStartcol(position, ['.'])
-            return result
-          })
-        }
-      }
-    }
-    let encoding = await workspace.nvim.eval('&fileencoding') as string
-    let serverConfig: ServerConfiguration = {
-      root: server_home,
-      encoding,
-      vmargs: javaConfig.get<string>('jdt.ls.vmargs', '')
-    }
-    let serverOptions
-    let port = process.env['SERVER_PORT']
-    if (!port) {
-      let lsPort = process.env['JDTLS_CLIENT_PORT']
-      if (!lsPort) {
-        serverOptions = prepareExecutable(requirements, workspacePath, serverConfig)
-      } else {
-        workspace.showMessage(`Lanuching jdt.ls from $JDTLS_CLIENT_PORT: ${port}`, 'warning')
-        serverOptions = () => {
-          let socket = net.connect(lsPort)
-          let result: StreamInfo = {
-            writer: socket,
-            reader: socket
+      triggerFiles: getTriggerFiles()
+    },
+    workspaceFolder: {
+      uri: Uri.file(rootPath).toString(),
+      name: path.basename(rootPath)
+    },
+    revealOutputChannelOn: RevealOutputChannelOn.Never,
+    middleware: {
+      provideCompletionItem: (
+        document: TextDocument,
+        position: Position,
+        context: CompletionContext,
+        token: CancellationToken,
+        next: ProvideCompletionItemsSignature
+      ): ProviderResult<CompletionItem[] | CompletionList> => {
+        return Promise.resolve(next(document, position, context, token)).then((res: CompletionItem[] | CompletionList) => {
+          let doc = workspace.getDocument(document.uri)
+          if (!doc) return []
+          let items: CompletionItem[] = res.hasOwnProperty('isIncomplete') ? (res as CompletionList).items : res as CompletionItem[]
+          let result: any = {
+            isIncomplete: res.hasOwnProperty('isIncomplete') ? (res as CompletionList).isIncomplete : false,
+            items
           }
-          return new Promise<any>((resolve, reject) => {
-            socket.on('connect', () => {
-              resolve(result)
-            })
-            socket.on('error', err => {
-              reject(err)
-            })
-          })
-        }
-      }
-    } else {
-      workspace.showMessage(`Lanuching client with $SERVER_PORT: ${port}`, 'warning')
-      // used during development
-      serverOptions = awaitServerConnection.bind(null, port)
-    }
-
-    // Create the language client and start the client.
-    languageClient = new LanguageClient('java', 'Language Support for Java', serverOptions, clientOptions)
-    languageClient.registerProposedFeatures()
-    let started = false
-    languageClient.onReady().then(() => {
-      languageClient.onNotification(StatusNotification.type, report => {
-        switch (report.type) {
-          case 'Started':
-            started = true
-            progressItem.isProgress = false
-            progressItem.text = '✓'
-            let info: ExtensionAPI = {
-              apiVersion: '0.2',
-              javaRequirement: requirements,
-            }
-            workspace.showMessage('JDT Language Server started')
-            languageClient.info('JDT Language Server started', info)
-            context.logger.info(info)
-            break
-          case 'Error':
-            progressItem.isProgress = false
-            progressItem.text = '✗'
-            workspace.showMessage(`JDT Language Server error ${report.message}`, 'error')
-            break
-          case 'Starting':
-            if (!started) {
-              progressItem.text = report.message
-              progressItem.show()
-            }
-            break
-          case 'Message':
-            workspace.showMessage(report.message)
-            break
-        }
-      })
-      languageClient.onNotification(ProgressReportNotification.type, progress => {
-        progressItem.show()
-        progressItem.text = progress.status
-        if (progress.complete) {
-          setTimeout(() => { progressItem.hide() }, 500)
-        }
-      })
-      languageClient.onNotification(ActionableNotification.type, notification => {
-        if (notification.severity == MessageType.Log) {
-          logNotification(notification.message)
-          return
-        }
-        if (!notification.commands) {
-          let msgType: MsgTypes = 'more'
-          if (notification.severity == MessageType.Error) {
-            msgType = 'error'
-          } else if (notification.severity == MessageType.Warning) {
-            msgType = 'warning'
-          }
-          workspace.showMessage(notification.message, msgType)
-        }
-        const titles = notification.commands.map(a => a.title)
-        workspace.showQuickpick(titles, notification.message).then(idx => {
-          if (idx == -1) return
-          let action = notification.commands[idx]
-          let args: any[] = (action.arguments) ? action.arguments : []
-          return commands.executeCommand(action.command, ...args)
-        }, _e => {
-          // noop
+          let isModule = items.length > 0 && items.every(o => o.kind == CompletionItemKind.Module)
+          if (isModule) result.startcol = doc.fixStartcol(position, ['.'])
+          return result
         })
-      })
-      languageClient.onRequest(ExecuteClientCommandRequest.type, params => {
-        return commands.executeCommand(params.command, ...params.arguments)
-      })
-
-      languageClient.onRequest(SendNotificationRequest.type, params => {
-        return commands.executeCommand(params.command, ...params.arguments)
-      })
-
-      buildpath.registerCommands(context)
-      sourceAction.registerCommands(languageClient, context)
-
-      commands.registerCommand(Commands.OPEN_OUTPUT, () => {
-        languageClient.outputChannel.show()
-      })
-      commands.registerCommand(Commands.SHOW_JAVA_REFERENCES, (uri: string, position: Position, locations: Location[]) => {
-        return commands.executeCommand(Commands.SHOW_REFERENCES, Uri.parse(uri), position, locations)
-      }, null, true)
-      commands.registerCommand(Commands.SHOW_JAVA_IMPLEMENTATIONS, (uri: string, position: Position, locations: Location[]) => {
-        return commands.executeCommand(Commands.SHOW_REFERENCES, Uri.parse(uri), position, locations)
-      }, null, true)
-
-      commands.registerCommand(Commands.CONFIGURATION_UPDATE, uri => projectConfigurationUpdate(languageClient, uri), null, true)
-
-      commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH, (_data?: any) => setIncompleteClasspathSeverity('ignore'))
-
-      commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH_HELP, (_data?: any) => {
-        return commands.executeCommand(Commands.OPEN_BROWSER, Uri.parse('https://github.com/redhat-developer/vscode-java/wiki/%22Classpath-is-incomplete%22-warning'))
-      })
-
-      commands.registerCommand(Commands.PROJECT_CONFIGURATION_STATUS, (uri, status) => setProjectConfigurationUpdate(languageClient, uri, status), null, true)
-
-      commands.registerCommand(Commands.APPLY_WORKSPACE_EDIT, async obj => {
-        await applyWorkspaceEdit(obj)
-      }, null, true)
-
-      commands.registerCommand(Commands.EXECUTE_WORKSPACE_COMMAND, (command, ...rest) => {
-        const params: ExecuteCommandParams = {
-          command,
-          arguments: rest
+      }
+    }
+  }
+  let encoding = await workspace.nvim.eval('&fileencoding') as string
+  let serverConfig: ServerConfiguration = {
+    root: server_home,
+    encoding,
+    vmargs: javaConfig.get<string>('jdt.ls.vmargs', '')
+  }
+  let serverOptions
+  let port = process.env['SERVER_PORT']
+  if (!port) {
+    let lsPort = process.env['JDTLS_CLIENT_PORT']
+    if (!lsPort) {
+      serverOptions = prepareExecutable(requirements, workspacePath, serverConfig)
+    } else {
+      workspace.showMessage(`Lanuching jdt.ls from $JDTLS_CLIENT_PORT: ${port}`, 'warning')
+      serverOptions = () => {
+        let socket = net.connect(lsPort)
+        let result: StreamInfo = {
+          writer: socket,
+          reader: socket
         }
-        return languageClient.sendRequest(ExecuteCommandRequest.type, params)
-      }, null, true)
+        return new Promise<any>((resolve, reject) => {
+          socket.on('connect', () => {
+            resolve(result)
+          })
+          socket.on('error', err => {
+            reject(err)
+          })
+        })
+      }
+    }
+  } else {
+    workspace.showMessage(`Lanuching client with $SERVER_PORT: ${port}`, 'warning')
+    // used during development
+    serverOptions = awaitServerConnection.bind(null, port)
+  }
 
-      commands.registerCommand(Commands.COMPILE_WORKSPACE, async (isFullCompile: boolean) => {
-        if (typeof isFullCompile !== 'boolean') {
-          const idx = await workspace.showQuickpick(['Incremental', 'Full'], 'please choose compile type:')
-          isFullCompile = idx != 0
+  // Create the language client and start the client.
+  languageClient = new LanguageClient('java', 'Language Support for Java', serverOptions, clientOptions)
+  languageClient.registerProposedFeatures()
+  let started = false
+  languageClient.onReady().then(() => {
+    languageClient.onNotification(StatusNotification.type, report => {
+      switch (report.type) {
+        case 'Started':
+          started = true
+          progressItem.isProgress = false
+          progressItem.text = '✓'
+          let info: ExtensionAPI = {
+            apiVersion: '0.2',
+            javaRequirement: requirements,
+          }
+          workspace.showMessage('JDT Language Server started')
+          languageClient.info('JDT Language Server started', info)
+          context.logger.info(info)
+          break
+        case 'Error':
+          progressItem.isProgress = false
+          progressItem.text = '✗'
+          workspace.showMessage(`JDT Language Server error ${report.message}`, 'error')
+          break
+        case 'Starting':
+          if (!started) {
+            progressItem.text = report.message
+            progressItem.show()
+          }
+          break
+        case 'Message':
+          workspace.showMessage(report.message)
+          break
+      }
+    })
+    languageClient.onNotification(ProgressReportNotification.type, progress => {
+      progressItem.show()
+      progressItem.text = progress.status
+      if (progress.complete) {
+        setTimeout(() => { progressItem.hide() }, 500)
+      }
+    })
+    languageClient.onNotification(ActionableNotification.type, notification => {
+      if (notification.severity == MessageType.Log) {
+        logNotification(notification.message)
+        return
+      }
+      if (!notification.commands) {
+        let msgType: MsgTypes = 'more'
+        if (notification.severity == MessageType.Error) {
+          msgType = 'error'
+        } else if (notification.severity == MessageType.Warning) {
+          msgType = 'warning'
         }
-        workspace.showMessage('Compiling workspace...')
-        const start = new Date().getTime()
-        const res = await Promise.resolve(languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile))
-        const elapsed = ((new Date().getTime() - start) / 1000).toFixed(1)
-        if (res === CompileWorkspaceStatus.SUCCEED) {
-          workspace.showMessage(`Compile done, used ${elapsed}s.`)
-        } else {
-          workspace.showMessage('Compile error!', 'error')
-        }
+        workspace.showMessage(notification.message, msgType)
+      }
+      const titles = notification.commands.map(a => a.title)
+      workspace.showQuickpick(titles, notification.message).then(idx => {
+        if (idx == -1) return
+        let action = notification.commands[idx]
+        let args: any[] = (action.arguments) ? action.arguments : []
+        return commands.executeCommand(action.command, ...args)
+      }, _e => {
+        // noop
       })
-      context.subscriptions.push(commands.registerCommand(Commands.UPDATE_SOURCE_ATTACHMENT, async (classFileUri: Uri): Promise<boolean> => {
-        const resolveRequest: SourceAttachmentRequest = {
+    })
+    languageClient.onRequest(ExecuteClientCommandRequest.type, params => {
+      return commands.executeCommand(params.command, ...params.arguments)
+    })
+
+    languageClient.onRequest(SendNotificationRequest.type, params => {
+      return commands.executeCommand(params.command, ...params.arguments)
+    })
+
+    buildpath.registerCommands(context)
+    sourceAction.registerCommands(languageClient, context)
+
+    commands.registerCommand(Commands.OPEN_OUTPUT, () => {
+      languageClient.outputChannel.show()
+    })
+    commands.registerCommand(Commands.SHOW_JAVA_REFERENCES, (uri: string, position: Position, locations: Location[]) => {
+      return commands.executeCommand(Commands.SHOW_REFERENCES, Uri.parse(uri), position, locations)
+    }, null, true)
+    commands.registerCommand(Commands.SHOW_JAVA_IMPLEMENTATIONS, (uri: string, position: Position, locations: Location[]) => {
+      return commands.executeCommand(Commands.SHOW_REFERENCES, Uri.parse(uri), position, locations)
+    }, null, true)
+
+    commands.registerCommand(Commands.CONFIGURATION_UPDATE, uri => projectConfigurationUpdate(languageClient, uri), null, true)
+
+    commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH, (_data?: any) => setIncompleteClasspathSeverity('ignore'))
+
+    commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH_HELP, (_data?: any) => {
+      return commands.executeCommand(Commands.OPEN_BROWSER, Uri.parse('https://github.com/redhat-developer/vscode-java/wiki/%22Classpath-is-incomplete%22-warning'))
+    })
+
+    commands.registerCommand(Commands.PROJECT_CONFIGURATION_STATUS, (uri, status) => setProjectConfigurationUpdate(languageClient, uri, status), null, true)
+
+    commands.registerCommand(Commands.APPLY_WORKSPACE_EDIT, async obj => {
+      await applyWorkspaceEdit(obj)
+    }, null, true)
+
+    commands.registerCommand(Commands.EXECUTE_WORKSPACE_COMMAND, (command, ...rest) => {
+      const params: ExecuteCommandParams = {
+        command,
+        arguments: rest
+      }
+      return languageClient.sendRequest(ExecuteCommandRequest.type, params)
+    }, null, true)
+
+    commands.registerCommand(Commands.COMPILE_WORKSPACE, async (isFullCompile: boolean) => {
+      if (typeof isFullCompile !== 'boolean') {
+        const idx = await workspace.showQuickpick(['Incremental', 'Full'], 'please choose compile type:')
+        isFullCompile = idx != 0
+      }
+      workspace.showMessage('Compiling workspace...')
+      const start = new Date().getTime()
+      const res = await Promise.resolve(languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile))
+      const elapsed = ((new Date().getTime() - start) / 1000).toFixed(1)
+      if (res === CompileWorkspaceStatus.SUCCEED) {
+        workspace.showMessage(`Compile done, used ${elapsed}s.`)
+      } else {
+        workspace.showMessage('Compile error!', 'error')
+      }
+    })
+    context.subscriptions.push(commands.registerCommand(Commands.UPDATE_SOURCE_ATTACHMENT, async (classFileUri: Uri): Promise<boolean> => {
+      const resolveRequest: SourceAttachmentRequest = {
+        classFileUri: classFileUri.toString(),
+      }
+      const resolveResult: SourceAttachmentResult = await commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.RESOLVE_SOURCE_ATTACHMENT, JSON.stringify(resolveRequest)) as SourceAttachmentResult
+      if (resolveResult.errorMessage) {
+        workspace.showMessage(resolveResult.errorMessage, 'error')
+        return false
+      }
+
+      const attributes: SourceAttachmentAttribute = resolveResult.attributes || {}
+      const defaultPath = attributes.sourceAttachmentPath || attributes.jarPath
+
+      const sourceFile = await workspace.nvim.call('input', ['Path of source file:', defaultPath, 'file'])
+
+      if (sourceFile) {
+        const updateRequest: SourceAttachmentRequest = {
           classFileUri: classFileUri.toString(),
+          attributes: {
+            ...attributes,
+            sourceAttachmentPath: sourceFile
+          },
         }
-        const resolveResult: SourceAttachmentResult = await commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.RESOLVE_SOURCE_ATTACHMENT, JSON.stringify(resolveRequest)) as SourceAttachmentResult
-        if (resolveResult.errorMessage) {
-          workspace.showMessage(resolveResult.errorMessage, 'error')
+        const updateResult: SourceAttachmentResult = await commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.UPDATE_SOURCE_ATTACHMENT, JSON.stringify(updateRequest)) as SourceAttachmentResult
+        if (updateResult.errorMessage) {
+          workspace.showMessage(updateResult.errorMessage, 'error')
           return false
         }
 
-        const attributes: SourceAttachmentAttribute = resolveResult.attributes || {}
-        const defaultPath = attributes.sourceAttachmentPath || attributes.jarPath
-
-        const sourceFile = await workspace.nvim.call('input', ['Path of source file:', defaultPath, 'file'])
-
-        if (sourceFile) {
-          const updateRequest: SourceAttachmentRequest = {
-            classFileUri: classFileUri.toString(),
-            attributes: {
-              ...attributes,
-              sourceAttachmentPath: sourceFile
-            },
-          }
-          const updateResult: SourceAttachmentResult = await commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.UPDATE_SOURCE_ATTACHMENT, JSON.stringify(updateRequest)) as SourceAttachmentResult
-          if (updateResult.errorMessage) {
-            workspace.showMessage(updateResult.errorMessage, 'error')
-            return false
-          }
-
-          // Notify jdt content provider to rerender the classfile contents.
-          jdtEventEmitter.fire(classFileUri)
-          return true
-        }
-      }))
-
-      let provider: TextDocumentContentProvider = {
-        onDidChange: jdtEventEmitter.event,
-        provideTextDocumentContent: async (uri: Uri, token: CancellationToken): Promise<string> => {
-          let content = await Promise.resolve(languageClient.sendRequest(ClassFileContentsRequest.type, { uri: uri.toString() }, token))
-          content = content || ''
-          let { nvim } = workspace
-          await nvim.command('setfiletype java')
-          return content
-        }
+        // Notify jdt content provider to rerender the classfile contents.
+        jdtEventEmitter.fire(classFileUri)
+        return true
       }
-      workspace.registerTextDocumentContentProvider('jdt', provider)
-    }, e => {
-      context.logger.error(e.message)
-    })
+    }))
 
-    let cleanWorkspaceExists = fs.existsSync(path.join(workspacePath, cleanWorkspaceFileName))
-    if (cleanWorkspaceExists) {
-      try {
-        deleteDirectory(workspacePath)
-      } catch (error) {
-        workspace.showMessage('Failed to delete ' + workspacePath + ': ' + error, 'error')
+    let provider: TextDocumentContentProvider = {
+      onDidChange: jdtEventEmitter.event,
+      provideTextDocumentContent: async (uri: Uri, token: CancellationToken): Promise<string> => {
+        let content = await Promise.resolve(languageClient.sendRequest(ClassFileContentsRequest.type, { uri: uri.toString() }, token))
+        content = content || ''
+        let { nvim } = workspace
+        await nvim.command('setfiletype java')
+        return content
       }
     }
+    workspace.registerTextDocumentContentProvider('jdt', provider)
+  }, e => {
+    context.logger.error(e.message)
+  })
 
-    workspace.showMessage(`JDT Language Server starting at ${workspace.root}`)
-    languageClient.start()
-    context.subscriptions.push(services.registLanguageClient(languageClient))
-    fixComment(context.subscriptions)
+  let cleanWorkspaceExists = fs.existsSync(path.join(workspacePath, cleanWorkspaceFileName))
+  if (cleanWorkspaceExists) {
+    try {
+      deleteDirectory(workspacePath)
+    } catch (error) {
+      workspace.showMessage('Failed to delete ' + workspacePath + ': ' + error, 'error')
+    }
   }
+
+  workspace.showMessage(`JDT Language Server starting at ${workspace.root}`)
+  languageClient.start()
+  context.subscriptions.push(services.registLanguageClient(languageClient))
+  fixComment(context.subscriptions)
 }
 
 function logNotification(message: string, ..._items: string[]): void {
