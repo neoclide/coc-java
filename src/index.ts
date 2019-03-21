@@ -123,6 +123,10 @@ async function start(server_home: string, requirements: RequirementsData, contex
         },
         triggerFiles: getTriggerFiles()
       },
+      workspaceFolder: {
+        uri: Uri.file(rootPath).toString(),
+        name: path.basename(rootPath)
+      },
       revealOutputChannelOn: RevealOutputChannelOn.Never,
       middleware: {
         provideCompletionItem: (
@@ -603,5 +607,5 @@ function getTriggerFiles(): string[] {
 
 async function findRoot(): Promise<string> {
   let root = await workspace.findUp(['pom.xml', '.project', '.classpath', 'build.gradle'])
-  return root || workspace.root
+  return root ? path.dirname(root) : workspace.cwd
 }
