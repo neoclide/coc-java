@@ -152,8 +152,25 @@ async function start(server_home: string, requirements: RequirementsData, contex
             isIncomplete: res.hasOwnProperty('isIncomplete') ? (res as CompletionList).isIncomplete : false,
             items
           }
-          let isModule = items.length > 0 && items.every(o => o.kind == CompletionItemKind.Module)
-          if (isModule) result.startcol = doc.fixStartcol(position, ['.'])
+          let hasModule = items.some(o => o.kind == CompletionItemKind.Module)
+          if (hasModule) {
+            let isModule = items.length > 0 && items.every(o => o.kind == CompletionItemKind.Module)
+            if (isModule) result.startcol = doc.fixStartcol(position, ['.'])
+            if (!isModule && context.triggerCharacter == '.') {
+              let line = doc.getline(position.line)
+              let r = doc.getWordRangeAtPosition({ line: position.line, character: position.character - 1 }, '.')
+              if (r) {
+                let word = line.slice(r.start.character, r.end.character)
+                if (word.length && word.indexOf('.') !== -1) {
+                  for (let item of items) {
+                    if (item.kind == CompletionItemKind.Module && item.label.startsWith(word)) {
+                      item.label = item.label.slice(word.length)
+                    }
+                  }
+                }
+              }
+            }
+          }
           return result
         })
       }
