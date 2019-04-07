@@ -47,6 +47,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
     }
     return
   }
+  workspace.showMessage(`Using java from ${requirements.java_home}, version: ${requirements.java_version}`, 'more')
 
   start(server_home, requirements, context).catch(e => {
     // tslint:disable-next-line: no-console
