@@ -122,7 +122,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
     },
     initializationOptions: {
       bundles: collectionJavaExtensions(),
-      workspaceFolders: [Uri.file(rootPath).toString()],
+      workspaceFolders: workspace.workspaceFolders,
       settings: { java: javaConfig },
       extendedClientCapabilities: {
         progressReportProvider: javaConfig.get<boolean>('progressReports.enabled'),
@@ -132,10 +132,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
       },
       triggerFiles: getTriggerFiles()
     },
-    workspaceFolder: {
-      uri: Uri.file(rootPath).toString(),
-      name: path.basename(rootPath)
-    },
+    workspaceFolder: workspace.workspaceFolder,
     revealOutputChannelOn: RevealOutputChannelOn.Never,
     middleware: {
       provideCompletionItem: (
@@ -500,7 +497,9 @@ async function openFormatter(extensionPath): Promise<void> {
   let formatterUrl: string = workspace.getConfiguration('java').get('format.settings.url')
   if (formatterUrl && formatterUrl.length > 0) {
     if (isRemote(formatterUrl)) {
-      commands.executeCommand(Commands.OPEN_BROWSER, Uri.parse(formatterUrl))
+      commands.executeCommand(Commands.OPEN_BROWSER, Uri.parse(formatterUrl)).catch(_e => {
+        // noop
+      })
     } else {
       let document = getPath(formatterUrl)
       if (document && fs.existsSync(document)) {
