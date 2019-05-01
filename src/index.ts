@@ -119,17 +119,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
       { scheme: 'untitled', language: 'java' }
     ],
     synchronize: {
-      configurationSection: 'java',
-      // Notify the server about file changes to .java and project/build files contained in the workspace
-      fileEvents: [
-        workspace.createFileSystemWatcher('**/*.java'),
-        workspace.createFileSystemWatcher('**/pom.xml'),
-        workspace.createFileSystemWatcher('**/*.gradle'),
-        workspace.createFileSystemWatcher('**/.project'),
-        workspace.createFileSystemWatcher('**/.classpath'),
-        workspace.createFileSystemWatcher('**/settings/*.prefs'),
-        workspace.createFileSystemWatcher('**/src/**')
-      ],
+      configurationSection: 'java'
     },
     initializationOptions: {
       bundles: collectionJavaExtensions(),
