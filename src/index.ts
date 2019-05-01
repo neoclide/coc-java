@@ -1,4 +1,4 @@
-import { commands, CompletionContext, ExtensionContext, LanguageClient, LanguageClientOptions, MsgTypes, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, workspace } from 'coc.nvim'
+import { extensions, commands, CompletionContext, ExtensionContext, LanguageClient, LanguageClientOptions, MsgTypes, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, workspace } from 'coc.nvim'
 import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as glob from 'glob'
@@ -15,7 +15,7 @@ import { downloadServer } from './downloader'
 import { ExtensionAPI } from './extension.api'
 import { fixComment } from './fixes'
 import { awaitServerConnection, prepareExecutable } from './javaServerStarter'
-import { collectionJavaExtensions } from './plugin'
+import { collectionJavaExtensions, onExtensionChange } from './plugin'
 import { ActionableNotification, ClassFileContentsRequest, CompileWorkspaceRequest, CompileWorkspaceStatus, ExecuteClientCommandRequest, FeatureStatus, MessageType, ProgressReportNotification, ProjectConfigurationUpdateRequest, SendNotificationRequest, SourceAttachmentAttribute, SourceAttachmentRequest, SourceAttachmentResult, StatusNotification } from './protocol'
 import { RequirementsData, resolveRequirements, ServerConfiguration } from './requirements'
 import * as sourceAction from './sourceAction'
@@ -289,40 +289,40 @@ async function start(server_home: string, requirements: RequirementsData, contex
 
     buildpath.registerCommands(context)
     sourceAction.registerCommands(languageClient, context)
-
-    commands.registerCommand(Commands.OPEN_OUTPUT, () => {
+    let { subscriptions } = context
+    subscriptions.push(commands.registerCommand(Commands.OPEN_OUTPUT, () => {
       languageClient.outputChannel.show()
-    })
-    commands.registerCommand(Commands.SHOW_JAVA_REFERENCES, (uri: string, position: Position, locations: Location[]) => {
+    }))
+    subscriptions.push(commands.registerCommand(Commands.SHOW_JAVA_REFERENCES, (uri: string, position: Position, locations: Location[]) => {
       return commands.executeCommand(Commands.SHOW_REFERENCES, Uri.parse(uri), position, locations)
-    }, null, true)
-    commands.registerCommand(Commands.SHOW_JAVA_IMPLEMENTATIONS, (uri: string, position: Position, locations: Location[]) => {
+    }, null, true))
+    subscriptions.push(commands.registerCommand(Commands.SHOW_JAVA_IMPLEMENTATIONS, (uri: string, position: Position, locations: Location[]) => {
       return commands.executeCommand(Commands.SHOW_REFERENCES, Uri.parse(uri), position, locations)
-    }, null, true)
+    }, null, true))
 
-    commands.registerCommand(Commands.CONFIGURATION_UPDATE, uri => projectConfigurationUpdate(languageClient, uri), null, true)
+    subscriptions.push(commands.registerCommand(Commands.CONFIGURATION_UPDATE, uri => projectConfigurationUpdate(languageClient, uri), null, true))
 
-    commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH, (_data?: any) => setIncompleteClasspathSeverity('ignore'))
+    subscriptions.push(commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH, (_data?: any) => setIncompleteClasspathSeverity('ignore')))
 
-    commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH_HELP, (_data?: any) => {
+    subscriptions.push(commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH_HELP, (_data?: any) => {
       return commands.executeCommand(Commands.OPEN_BROWSER, Uri.parse('https://github.com/redhat-developer/vscode-java/wiki/%22Classpath-is-incomplete%22-warning'))
-    })
+    }))
 
-    commands.registerCommand(Commands.PROJECT_CONFIGURATION_STATUS, (uri, status) => setProjectConfigurationUpdate(languageClient, uri, status), null, true)
+    subscriptions.push(commands.registerCommand(Commands.PROJECT_CONFIGURATION_STATUS, (uri, status) => setProjectConfigurationUpdate(languageClient, uri, status), null, true))
 
-    commands.registerCommand(Commands.APPLY_WORKSPACE_EDIT, async obj => {
+    subscriptions.push(commands.registerCommand(Commands.APPLY_WORKSPACE_EDIT, async obj => {
       await applyWorkspaceEdit(obj)
-    }, null, true)
+    }, null, true))
 
-    commands.registerCommand(Commands.EXECUTE_WORKSPACE_COMMAND, (command, ...rest) => {
+    subscriptions.push(commands.registerCommand(Commands.EXECUTE_WORKSPACE_COMMAND, (command, ...rest) => {
       const params: ExecuteCommandParams = {
         command,
         arguments: rest
       }
       return languageClient.sendRequest(ExecuteCommandRequest.type, params)
-    }, null, true)
+    }, null, true))
 
-    commands.registerCommand(Commands.COMPILE_WORKSPACE, async (isFullCompile: boolean) => {
+    subscriptions.push(commands.registerCommand(Commands.COMPILE_WORKSPACE, async (isFullCompile: boolean) => {
       if (typeof isFullCompile !== 'boolean') {
         const idx = await workspace.showQuickpick(['Incremental', 'Full'], 'please choose compile type:')
         isFullCompile = idx != 0
@@ -336,8 +336,8 @@ async function start(server_home: string, requirements: RequirementsData, contex
       } else {
         workspace.showMessage('Compile error!', 'error')
       }
-    })
-    context.subscriptions.push(commands.registerCommand(Commands.UPDATE_SOURCE_ATTACHMENT, async (classFileUri: Uri): Promise<boolean> => {
+    }))
+    subscriptions.push(commands.registerCommand(Commands.UPDATE_SOURCE_ATTACHMENT, async (classFileUri: Uri): Promise<boolean> => {
       const resolveRequest: SourceAttachmentRequest = {
         classFileUri: classFileUri.toString(),
       }
@@ -386,6 +386,12 @@ async function start(server_home: string, requirements: RequirementsData, contex
   }, e => {
     context.logger.error(e.message)
   })
+  extensions.onDidActiveExtension(() => {
+    onExtensionChange()
+  }, null, context.subscriptions)
+  extensions.onDidUnloadExtension(() => {
+    onExtensionChange()
+  }, null, context.subscriptions)
 
   let cleanWorkspaceExists = fs.existsSync(path.join(workspacePath, cleanWorkspaceFileName))
   if (cleanWorkspaceExists) {
