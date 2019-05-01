@@ -5,15 +5,27 @@ works with [coc.nvim](https://github.com/neoclide/coc.nvim).
 
 # Quick Start
 
-- Install this extension by run command:
+1. Install this extension by run command:
 
-  ```
-  :CocInstall coc-java
-  ```
+```
+:CocInstall coc-java
+```
 
-- `jdt` uri is supported automatically
+2. If you do not have a _Java_ Development Kit correctly [set](#setting-the-jdk)
+   - Download and install a recent Java Development Kit (latest Java 8 is the minimum requirement).
+3. Extension is activated when you first access a Java file
+   - Recognizes projects with _Maven_ or _Gradle_ build files in the directory hierarchy.
 
 **Note**: this extension would download latest [jdt.ls](https://github.com/eclipse/eclipse.jdt.ls) for you when not found.
+
+# Setting the JDK
+
+The path to the Java Development Kit is searched in the following order:
+
+- the `java.home` setting in coc.nvim settings (workspace then user settings)
+- the `JDK_HOME` environment variable
+- the `JAVA_HOME` environment variable
+- on the current system path
 
 # Features
 
@@ -52,7 +64,7 @@ The following commands are available:
 - `java.projectConfiguration.update`: is available when the editor is focused on a Maven pom.xml or a Gradle file. It forces project configuration / classpath updates (eg. dependency changes or Java compilation level), according to the project build descriptor.
 - `java.open.serverLog`: opens the Java Language Server log file, useful for troubleshooting problems.
 - `java.workspace.compile`: manually triggers compilation of the workspace.
-- `java.edit.organizeImports`: Organize imports in the currently opened Java file.
+- `java.action.organizeImports`: Organize imports in the currently opened Java file.
 - `java.open.formatter.settings`: Open the Eclipse formatter settings. Creates a new settings file if none exists.
 - `java.clean.workspace`: Clean the Java language server workspace.
 
@@ -87,6 +99,18 @@ The following settings are supported:
 - `java.completion.guessMethodArguments` : When set to true, method arguments are guessed when a method is selected from as list of code assist proposals.
 - `java.completion.enabled` : Enable/disable code completion support.
 - `java.clean.workspace` : Clean the Java language server workspace.
+- `java.foldingRange.enabled`: Enable/disable smart folding range support. If disabled, it will use the default indentation-based folding range provided by VS Code.
+
+New in 1.3.0:
+
+- `java.maven.downloadSources`: Enable/disable eager download of Maven source artifacts.
+- `java.codeGeneration.useBlocks`: Use blocks in 'if' statements when generating the methods. Defaults to `false`.
+- `java.codeGeneration.generateComments`: Generate method comments when generating the methods. Defaults to `false`.
+- `java.codeGeneration.toString.template`: The template for generating the toString method. Defaults to `${object.className} [${member.name()}=${member.value}, ${otherMembers}]`.
+- `java.codeGeneration.toString.codeStyle`: The code style for generating the toString method. Defaults to `STRING_CONCATENATION`.
+- `java.codeGeneration.toString.skipNullValues`: Skip null values when generating the toString method. Defaults to `false`.
+- `java.codeGeneration.toString.listArrayContents`: List contents of arrays instead of using native toString(). Defaults to `true`.
+- `java.codeGeneration.toString.limitElements`: Limit number of items in arrays/collections/maps to list, if 0 then list all. Defaults to `0`.
 
 # Troubleshooting
 
