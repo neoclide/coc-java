@@ -24,7 +24,9 @@ let languageClient: LanguageClient
 let jdtEventEmitter = new Emitter<Uri>()
 const cleanWorkspaceFileName = '.cleanWorkspace'
 
-export async function activate(context: ExtensionContext): Promise<void> {
+let serverStatus: 'Starting' | 'Started' | 'Error' = 'Starting'
+
+export async function activate(context: ExtensionContext): Promise<ExtensionAPI> {
   let javaConfig = workspace.getConfiguration('java')
   let server_home: string = javaConfig.get('jdt.ls.home', '')
   if (server_home) {
@@ -53,6 +55,14 @@ export async function activate(context: ExtensionContext): Promise<void> {
     // tslint:disable-next-line: no-console
     console.error(e)
   })
+  let info: ExtensionAPI = {
+    apiVersion: '0.2',
+    javaRequirement: requirements,
+    get status(): any {
+      return serverStatus
+    }
+  }
+  return info
 }
 
 async function start(server_home: string, requirements: RequirementsData, context: ExtensionContext): Promise<void> {
@@ -223,18 +233,14 @@ async function start(server_home: string, requirements: RequirementsData, contex
           progressItem.isProgress = false
           statusItem.text = 'JDT.LS'
           statusItem.show()
-          // progressItem.text = '✓'
-          let info: ExtensionAPI = {
-            apiVersion: '0.2',
-            javaRequirement: requirements,
-          }
+          serverStatus = 'Started'
           workspace.showMessage('JDT Language Server started')
-          languageClient.info('JDT Language Server started', info)
-          context.logger.info(info)
+          languageClient.info('JDT Language Server started', { javaRequirement: requirements, apiVersion: '0.2' })
           break
         case 'Error':
           progressItem.isProgress = false
           statusItem.hide()
+          serverStatus = 'Error'
           workspace.showMessage(`JDT Language Server error ${report.message}`, 'error')
           break
         case 'Starting':
