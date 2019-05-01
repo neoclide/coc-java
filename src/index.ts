@@ -122,7 +122,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
     },
     initializationOptions: {
       bundles: collectionJavaExtensions(),
-      workspaceFolders: workspace.workspaceFolders,
+      workspaceFolders: workspace.workspaceFolders ? workspace.workspaceFolders.map(f => f.uri) : null,
       settings: { java: javaConfig },
       extendedClientCapabilities: {
         progressReportProvider: javaConfig.get<boolean>('progressReports.enabled'),
