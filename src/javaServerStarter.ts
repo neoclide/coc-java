@@ -17,6 +17,8 @@ export function prepareExecutable(requirements: RequirementsData, workspacePath,
   executable.options = options
   executable.command = path.resolve(requirements.java_home + '/bin/java')
   executable.args = prepareParams(requirements, config, workspacePath)
+  // tslint:disable-next-line: no-console
+  console.log('Starting Java server with: ' + executable.command + ' ' + executable.args.join(' '))
   return executable
 }
 
@@ -25,12 +27,14 @@ export function awaitServerConnection(port): Thenable<StreamInfo> {
   return new Promise((res, rej) => {
     let server = net.createServer(stream => {
       server.close()
+      // tslint:disable-next-line: no-console
       console.log('JDT LS connection established on port ' + addr)
       res({ reader: stream, writer: stream })
     })
     server.on('error', rej)
     server.listen(addr, () => {
       server.removeListener('error', rej)
+      // tslint:disable-next-line: no-console
       console.log('Awaiting JDT LS connection on port ' + addr)
     })
     return server
@@ -109,6 +113,7 @@ export function parseVMargs(params: any[], vmargsLine: string): void {
   }
   vmargs.forEach(arg => {
     // remove all standalone double quotes
+    // tslint:disable-next-line: only-arrow-functions typedef
     arg = arg.replace(/(\\)?"/g, function($0, $1) { return ($1 ? $0 : '') })
     // unescape all escaped double quotes
     arg = arg.replace(/(\\)"/g, '"')
