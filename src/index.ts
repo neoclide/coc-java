@@ -139,7 +139,8 @@ async function start(server_home: string, requirements: RequirementsData, contex
         progressReportProvider: javaConfig.get<boolean>('progressReports.enabled'),
         classFileContentsSupport: true,
         overrideMethodsPromptSupport: true,
-        hashCodeEqualsPromptSupport: true
+        hashCodeEqualsPromptSupport: true,
+        advancedOrganizeImportsSupport: true
       },
       triggerFiles: getTriggerFiles()
     },

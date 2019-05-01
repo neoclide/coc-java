@@ -1,14 +1,16 @@
 'use strict'
 
-import { commands, workspace, ExtensionContext, LanguageClient } from 'coc.nvim'
-import { CodeActionParams } from 'vscode-languageserver-protocol'
+import { commands, ExtensionContext, LanguageClient, workspace } from 'coc.nvim'
+import { CodeActionParams, Range } from 'vscode-languageserver-protocol'
 import { Commands } from './commands'
 import { applyWorkspaceEdit } from './index'
-import { ListOverridableMethodsRequest, AddOverridableMethodsRequest, CheckHashCodeEqualsStatusRequest, GenerateHashCodeEqualsRequest } from './protocol'
+import { AddOverridableMethodsRequest, CheckHashCodeEqualsStatusRequest, GenerateHashCodeEqualsRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, OrganizeImportsRequest } from './protocol'
 
 export function registerCommands(languageClient: LanguageClient, context: ExtensionContext): void {
   registerOverrideMethodsCommand(languageClient, context)
   registerHashCodeEqualsCommand(languageClient, context)
+  registerOrganizeImportsCommand(languageClient, context)
+  registerChooseImportCommand(context)
 }
 
 function registerOverrideMethodsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
@@ -86,4 +88,53 @@ function registerHashCodeEqualsCommand(languageClient: LanguageClient, context: 
     }))
     await applyWorkspaceEdit(workspaceEdit)
   }))
+}
+
+function registerOrganizeImportsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+  context.subscriptions.push(commands.registerCommand(Commands.ORGANIZE_IMPORTS, async () => {
+    let doc = workspace.getDocument(workspace.bufnr)
+    let params: CodeActionParams = {
+      textDocument: {
+        uri: doc.uri
+      },
+      range: Range.create(0, 0, doc.lineCount, 0),
+      context: { diagnostics: [] },
+    }
+    const workspaceEdit = await Promise.resolve(languageClient.sendRequest(OrganizeImportsRequest.type, params))
+    await applyWorkspaceEdit(workspaceEdit)
+  }))
+}
+
+function registerChooseImportCommand(context: ExtensionContext): void {
+  context.subscriptions.push(commands.registerCommand(Commands.CHOOSE_IMPORTS, async (_uri: string, selections: ImportSelection[]) => {
+    const chosen: ImportCandidate[] = []
+    // tslint:disable-next-line: prefer-for-of
+    for (let i = 0; i < selections.length; i++) {
+      const selection: ImportSelection = selections[i]
+      // Move the cursor to the code line with ambiguous import choices.
+      await workspace.moveTo(selection.range.start)
+      const candidates: ImportCandidate[] = selection.candidates
+      // const items = candidates.map(item => {
+      //   return {
+      //     label: item.fullyQualifiedName,
+      //     origin: item
+      //   }
+      // })
+
+      const fullyQualifiedName = candidates[0].fullyQualifiedName
+      const typeName = fullyQualifiedName.substring(fullyQualifiedName.lastIndexOf(".") + 1)
+      try {
+        let res = await workspace.showQuickpick(candidates.map(o => o.fullyQualifiedName), `Choose type '${typeName}' to import`)
+        if (res == -1) {
+          chosen.push(null)
+          continue
+        }
+        chosen.push(candidates[res])
+      } catch (err) {
+        break
+      }
+    }
+
+    return chosen
+  }, null, true))
 }
