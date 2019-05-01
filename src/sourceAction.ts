@@ -4,13 +4,15 @@ import { commands, ExtensionContext, LanguageClient, workspace } from 'coc.nvim'
 import { CodeActionParams, Range } from 'vscode-languageserver-protocol'
 import { Commands } from './commands'
 import { applyWorkspaceEdit } from './index'
-import { AddOverridableMethodsRequest, CheckHashCodeEqualsStatusRequest, GenerateHashCodeEqualsRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, OrganizeImportsRequest } from './protocol'
+import { AddOverridableMethodsRequest, CheckHashCodeEqualsStatusRequest, CheckToStringStatusRequest, GenerateAccessorsRequest, GenerateHashCodeEqualsRequest, GenerateToStringRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, OrganizeImportsRequest, ResolveUnimplementedAccessorsRequest, VariableField } from './protocol'
 
 export function registerCommands(languageClient: LanguageClient, context: ExtensionContext): void {
   registerOverrideMethodsCommand(languageClient, context)
   registerHashCodeEqualsCommand(languageClient, context)
   registerOrganizeImportsCommand(languageClient, context)
   registerChooseImportCommand(context)
+  registerGenerateToStringCommand(languageClient, context)
+  registerGenerateAccessorsCommand(languageClient, context)
 }
 
 function registerOverrideMethodsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
@@ -102,7 +104,7 @@ function registerOrganizeImportsCommand(languageClient: LanguageClient, context:
     }
     const workspaceEdit = await Promise.resolve(languageClient.sendRequest(OrganizeImportsRequest.type, params))
     await applyWorkspaceEdit(workspaceEdit)
-  }))
+  }, null, true))
 }
 
 function registerChooseImportCommand(context: ExtensionContext): void {
@@ -114,13 +116,6 @@ function registerChooseImportCommand(context: ExtensionContext): void {
       // Move the cursor to the code line with ambiguous import choices.
       await workspace.moveTo(selection.range.start)
       const candidates: ImportCandidate[] = selection.candidates
-      // const items = candidates.map(item => {
-      //   return {
-      //     label: item.fullyQualifiedName,
-      //     origin: item
-      //   }
-      // })
-
       const fullyQualifiedName = candidates[0].fullyQualifiedName
       const typeName = fullyQualifiedName.substring(fullyQualifiedName.lastIndexOf(".") + 1)
       try {
@@ -136,5 +131,79 @@ function registerChooseImportCommand(context: ExtensionContext): void {
     }
 
     return chosen
+  }, null, true))
+}
+
+function registerGenerateAccessorsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+  // selector: DocumentSelector, provider: CodeActionProvider, clientId: string, codeActionKinds?: CodeActionKind[]
+  context.subscriptions.push(commands.registerCommand(Commands.GENERATE_ACCESSORS_PROMPT, async (params: CodeActionParams) => {
+    const accessors = await Promise.resolve(languageClient.sendRequest(ResolveUnimplementedAccessorsRequest.type, params))
+    if (!accessors || !accessors.length) {
+      return
+    }
+
+    const accessorItems = accessors.map(accessor => {
+      const description = []
+      if (accessor.generateGetter) {
+        description.push('getter')
+      }
+      if (accessor.generateSetter) {
+        description.push('setter')
+      }
+      return {
+        label: accessor.fieldName,
+        description: (accessor.isStatic ? 'static ' : '') + description.join(', '),
+        originalField: accessor,
+      }
+    })
+    // TODO support multiple selection
+    const idx = await workspace.showQuickpick(accessorItems.map(o => o.label), 'Select the fields to generate getters and setters.')
+    if (idx == -1) return
+    const selectedAccessors = [accessorItems[idx]]
+
+    const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateAccessorsRequest.type, {
+      context: params,
+      accessors: selectedAccessors.map(item => item.originalField),
+    }))
+    await applyWorkspaceEdit(workspaceEdit)
+  }, null, true))
+}
+
+function registerGenerateToStringCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+  context.subscriptions.push(commands.registerCommand(Commands.GENERATE_TOSTRING_PROMPT, async (params: CodeActionParams) => {
+    const result = await Promise.resolve(languageClient.sendRequest(CheckToStringStatusRequest.type, params))
+    if (!result) {
+      return
+    }
+
+    if (result.exists) {
+      const ans = await workspace.showPrompt(`Method 'toString()' already exists in the Class '${result.type}'. `
+        + 'Do you want to replace the implementation?')
+      if (!ans) {
+        return
+      }
+    }
+
+    let fields: VariableField[] = []
+    if (result.fields && result.fields.length) {
+      const fieldItems = result.fields.map(field => {
+        return {
+          label: `${field.name}: ${field.type}`,
+          picked: true,
+          originalField: field
+        }
+      })
+      // TODO support multiple selection
+      const idx = await workspace.showQuickpick(fieldItems.map(o => o.label), 'Select the fields to include in the toString() method.')
+      if (idx == -1) return
+      let selectedFields = [fieldItems[idx]]
+      fields = selectedFields.map(item => item.originalField)
+    }
+
+    const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateToStringRequest.type, {
+      context: params,
+      fields,
+    }))
+    await applyWorkspaceEdit(workspaceEdit)
   }, null, true))
 }

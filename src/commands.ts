@@ -124,4 +124,12 @@ export namespace Commands {
    * Choose type to import.
    */
   export const CHOOSE_IMPORTS = "java.action.organizeImports.chooseImports"
+  /**
+   * Generate toString().
+   */
+  export const GENERATE_TOSTRING_PROMPT = 'java.action.generateToStringPrompt'
+  /**
+   * Generate Getters and Setters.
+   */
+  export const GENERATE_ACCESSORS_PROMPT = 'java.action.generateAccessorsPrompt'
 }

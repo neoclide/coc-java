@@ -130,7 +130,9 @@ async function start(server_home: string, requirements: RequirementsData, contex
         classFileContentsSupport: true,
         overrideMethodsPromptSupport: true,
         hashCodeEqualsPromptSupport: true,
-        advancedOrganizeImportsSupport: true
+        advancedOrganizeImportsSupport: true,
+        generateToStringPromptSupport: true,
+        advancedGenerateAccessorsSupport: true
       },
       triggerFiles: getTriggerFiles()
     },

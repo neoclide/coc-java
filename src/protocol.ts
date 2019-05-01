@@ -186,3 +186,42 @@ export interface ImportSelection {
   candidates: ImportCandidate[]
   range: Range
 }
+
+export interface CheckToStringResponse {
+  type: string
+  fields: VariableField[]
+  exists: boolean
+}
+
+export namespace CheckToStringStatusRequest {
+  export const type = new RequestType<CodeActionParams, CheckToStringResponse, void, void>('java/checkToStringStatus')
+}
+
+export interface GenerateToStringParams {
+  context: CodeActionParams
+  fields: VariableField[]
+}
+
+export interface AccessorField {
+  fieldName: string
+  isStatic: boolean
+  generateGetter: boolean
+  generateSetter: boolean
+}
+
+export namespace GenerateToStringRequest {
+  export const type = new RequestType<GenerateToStringParams, WorkspaceEdit, void, void>('java/generateToString')
+}
+
+export namespace ResolveUnimplementedAccessorsRequest {
+  export const type = new RequestType<CodeActionParams, AccessorField[], void, void>('java/resolveUnimplementedAccessors')
+}
+
+export interface GenerateAccessorsParams {
+  context: CodeActionParams
+  accessors: AccessorField[]
+}
+
+export namespace GenerateAccessorsRequest {
+  export const type = new RequestType<GenerateAccessorsParams, WorkspaceEdit, void, void>('java/generateAccessors')
+}
