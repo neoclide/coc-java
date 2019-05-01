@@ -94,10 +94,11 @@ async function start(server_home: string, requirements: RequirementsData, contex
   }
 
   let javaConfig = workspace.getConfiguration('java')
+  let statusItem = workspace.createStatusBarItem(0)
+  statusItem.text = ''
   let progressItem = workspace.createStatusBarItem(0, { progress: true })
   progressItem.text = 'jdt starting'
   progressItem.show()
-  let rootPath = await findRoot()
 
   // Options to control the language client
   let clientOptions: LanguageClientOptions = {
@@ -220,7 +221,9 @@ async function start(server_home: string, requirements: RequirementsData, contex
         case 'Started':
           started = true
           progressItem.isProgress = false
-          progressItem.text = '✓'
+          statusItem.text = 'JDT.LS'
+          statusItem.show()
+          // progressItem.text = '✓'
           let info: ExtensionAPI = {
             apiVersion: '0.2',
             javaRequirement: requirements,
@@ -231,7 +234,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
           break
         case 'Error':
           progressItem.isProgress = false
-          progressItem.text = '✗'
+          statusItem.hide()
           workspace.showMessage(`JDT Language Server error ${report.message}`, 'error')
           break
         case 'Starting':
@@ -627,9 +630,4 @@ function getTriggerFiles(): string[] {
     }
   }
   return openedJavaFiles
-}
-
-async function findRoot(): Promise<string> {
-  let root = await workspace.findUp(['pom.xml', '.project', '.classpath', 'build.gradle'])
-  return root ? path.dirname(root) : workspace.cwd
 }

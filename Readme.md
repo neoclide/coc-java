@@ -88,6 +88,15 @@ The following settings are supported:
 - `java.completion.enabled` : Enable/disable code completion support.
 - `java.clean.workspace` : Clean the Java language server workspace.
 
+# Troubleshooting
+
+- Run `:messages` to get echoed messages in vim.
+- Text `JDT.LS` would be in your statusline when you have statusline integration with coc.nvim.
+- Enable verbose trace for jdt.ls by add `"java.trace.server": "verbose"` in
+  your settings file, then check output by `:CocCommand workspace.showOutput java`
+- Run `:CocCommand java.open.serverLog` to open log of jdt.ls.
+- Try `:CocCommand java.clean.workspace` to clean workspace cache.
+
 # License
 
 EPL 1.0, See [LICENSE](LICENSE) for more information.
