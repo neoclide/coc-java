@@ -396,7 +396,7 @@
     "@types/mocha": "^5.2.6",
     "@types/node": "^11.11.3",
     "@types/tunnel": "^0.0.0",
-    "coc.nvim": "^0.0.58",
+    "coc.nvim": "0.0.67",
     "gulp": "^4.0.0",
     "gulp-decompress": "2.0.2",
     "gulp-download": "0.0.1",
@@ -404,7 +404,7 @@
     "mocha": "^6.0.2",
     "rimraf": "^2.6.3",
     "tslint": "^5.14.0",
-    "typescript": "^3.3.3333"
+    "typescript": "3.4.1"
   },
   "dependencies": {
     "compressing": "^1.4.0",

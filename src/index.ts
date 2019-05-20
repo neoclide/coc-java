@@ -20,7 +20,7 @@ import { ActionableNotification, ClassFileContentsRequest, CompileWorkspaceReque
 import { RequirementsData, resolveRequirements, ServerConfiguration } from './requirements'
 import * as sourceAction from './sourceAction'
 
-let languageClient: LanguageClient
+let languageClient: any
 let jdtEventEmitter = new Emitter<Uri>()
 const cleanWorkspaceFileName = '.cleanWorkspace'
 
@@ -420,7 +420,7 @@ function setIncompleteClasspathSeverity(severity: string): void {
   console.log(section + ' globally set to ' + severity)
 }
 
-async function projectConfigurationUpdate(languageClient: LanguageClient, uri?: Uri): Promise<void> {
+async function projectConfigurationUpdate(languageClient: any, uri?: Uri): Promise<void> {
   let resource = uri ? uri.toString() : null
   if (!resource) {
     let document = await workspace.document

@@ -15,7 +15,7 @@ export function registerCommands(languageClient: LanguageClient, context: Extens
   registerGenerateAccessorsCommand(languageClient, context)
 }
 
-function registerOverrideMethodsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+function registerOverrideMethodsCommand(languageClient: any, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.OVERRIDE_METHODS_PROMPT, async (params: CodeActionParams) => {
     const result = await Promise.resolve(languageClient.sendRequest(ListOverridableMethodsRequest.type, params))
     if (!result || !result.methods || !result.methods.length) {
@@ -53,7 +53,7 @@ function registerOverrideMethodsCommand(languageClient: LanguageClient, context:
   }))
 }
 
-function registerHashCodeEqualsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+function registerHashCodeEqualsCommand(languageClient: any, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.HASHCODE_EQUALS_PROMPT, async (params: CodeActionParams) => {
     const result = await Promise.resolve(languageClient.sendRequest(CheckHashCodeEqualsStatusRequest.type, params))
     if (!result || !result.fields || !result.fields.length) {
@@ -92,7 +92,7 @@ function registerHashCodeEqualsCommand(languageClient: LanguageClient, context: 
   }))
 }
 
-function registerOrganizeImportsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+function registerOrganizeImportsCommand(languageClient: any, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.ORGANIZE_IMPORTS, async () => {
     let doc = workspace.getDocument(workspace.bufnr)
     let params: CodeActionParams = {
@@ -134,7 +134,7 @@ function registerChooseImportCommand(context: ExtensionContext): void {
   }, null, true))
 }
 
-function registerGenerateAccessorsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+function registerGenerateAccessorsCommand(languageClient: any, context: ExtensionContext): void {
   // selector: DocumentSelector, provider: CodeActionProvider, clientId: string, codeActionKinds?: CodeActionKind[]
   context.subscriptions.push(commands.registerCommand(Commands.GENERATE_ACCESSORS_PROMPT, async (params: CodeActionParams) => {
     const accessors = await Promise.resolve(languageClient.sendRequest(ResolveUnimplementedAccessorsRequest.type, params))
@@ -169,7 +169,7 @@ function registerGenerateAccessorsCommand(languageClient: LanguageClient, contex
   }, null, true))
 }
 
-function registerGenerateToStringCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+function registerGenerateToStringCommand(languageClient: any, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.GENERATE_TOSTRING_PROMPT, async (params: CodeActionParams) => {
     const result = await Promise.resolve(languageClient.sendRequest(CheckToStringStatusRequest.type, params))
     if (!result) {
