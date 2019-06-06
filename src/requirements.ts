@@ -1,12 +1,11 @@
 'use strict'
 
-import { workspace } from 'coc.nvim'
+import { workspace, Uri } from 'coc.nvim'
 import cp from 'child_process'
 import path from 'path'
 import pathExists from 'path-exists'
 import expandHomeDir from 'expand-home-dir'
 import findJavaHome from 'find-java-home'
-import Uri from 'vscode-uri'
 
 const isWindows = process.platform.indexOf('win') === 0
 const JAVAC_FILENAME = 'javac' + (isWindows ? '.exe' : '')

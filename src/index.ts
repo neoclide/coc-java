@@ -1,4 +1,4 @@
-import { extensions, commands, CompletionContext, ExtensionContext, LanguageClient, LanguageClientOptions, MsgTypes, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, workspace } from 'coc.nvim'
+import { Uri, extensions, commands, CompletionContext, ExtensionContext, LanguageClient, LanguageClientOptions, MsgTypes, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, workspace } from 'coc.nvim'
 import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as glob from 'glob'
@@ -7,7 +7,6 @@ import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
 import { CancellationToken, CompletionItem, CompletionItemKind, CompletionList, Emitter, ExecuteCommandParams, ExecuteCommandRequest, Location, Position, TextDocument, WorkspaceEdit } from 'vscode-languageserver-protocol'
-import Uri from 'vscode-uri'
 import rimraf from 'rimraf'
 import * as buildpath from './buildpath'
 import { Commands } from './commands'
@@ -132,7 +131,9 @@ async function start(server_home: string, requirements: RequirementsData, contex
         hashCodeEqualsPromptSupport: true,
         advancedOrganizeImportsSupport: true,
         generateToStringPromptSupport: true,
-        advancedGenerateAccessorsSupport: true
+        advancedGenerateAccessorsSupport: true,
+        generateConstructorsPromptSupport: true,
+        generateDelegateMethodsPromptSupport: true
       },
       triggerFiles: getTriggerFiles()
     },
@@ -493,7 +494,7 @@ function deleteDirectory(dir): void {
 
 async function openServerLogFile(workspacePath: string): Promise<boolean> {
   let serverLogFile = path.join(workspacePath, '.metadata', '.log')
-  if (!serverLogFile) {
+  if (!fs.existsSync(serverLogFile)) {
     workspace.showMessage('Java Language Server has not started logging.', 'warning')
     return
   }

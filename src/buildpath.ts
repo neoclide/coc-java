@@ -1,8 +1,7 @@
 'use strict'
 
-import { commands, ExtensionContext, workspace } from 'coc.nvim'
+import { commands, Uri, ExtensionContext, workspace } from 'coc.nvim'
 import { Commands } from './commands'
-import Uri from 'vscode-uri'
 
 interface Result {
   status: boolean

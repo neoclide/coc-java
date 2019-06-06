@@ -112,6 +112,12 @@ New in 1.3.0:
 - `java.codeGeneration.toString.listArrayContents`: List contents of arrays instead of using native toString(). Defaults to `true`.
 - `java.codeGeneration.toString.limitElements`: Limit number of items in arrays/collections/maps to list, if 0 then list all. Defaults to `0`.
 
+New in 1.3.1:
+
+- `java.import.gradle.wrapper.enabled`: Enable/disable the Gradle wrapper.
+- `java.import.gradle.version`: Gradle version, used if the gradle wrapper is missing or disabled.
+- CodeAction: `generate constructors` and `generate delegateMethods`
+
 # Troubleshooting
 
 - Run `:messages` to get echoed messages in vim.

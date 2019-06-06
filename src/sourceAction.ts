@@ -4,7 +4,7 @@ import { commands, ExtensionContext, LanguageClient, workspace } from 'coc.nvim'
 import { CodeActionParams, Range } from 'vscode-languageserver-protocol'
 import { Commands } from './commands'
 import { applyWorkspaceEdit } from './index'
-import { AddOverridableMethodsRequest, CheckHashCodeEqualsStatusRequest, CheckToStringStatusRequest, GenerateAccessorsRequest, GenerateHashCodeEqualsRequest, GenerateToStringRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, OrganizeImportsRequest, ResolveUnimplementedAccessorsRequest, VariableField } from './protocol'
+import { AddOverridableMethodsRequest, CheckConstructorsResponse, CheckConstructorStatusRequest, CheckDelegateMethodsStatusRequest, CheckHashCodeEqualsStatusRequest, CheckToStringStatusRequest, GenerateAccessorsRequest, GenerateConstructorsRequest, GenerateDelegateMethodsRequest, GenerateHashCodeEqualsRequest, GenerateToStringRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, OrganizeImportsRequest, ResolveUnimplementedAccessorsRequest, VariableBinding } from './protocol'
 
 export function registerCommands(languageClient: LanguageClient, context: ExtensionContext): void {
   registerOverrideMethodsCommand(languageClient, context)
@@ -13,6 +13,8 @@ export function registerCommands(languageClient: LanguageClient, context: Extens
   registerChooseImportCommand(context)
   registerGenerateToStringCommand(languageClient, context)
   registerGenerateAccessorsCommand(languageClient, context)
+  registerGenerateConstructorsCommand(languageClient, context)
+  registerGenerateDelegateMethodsCommand(languageClient, context)
 }
 
 function registerOverrideMethodsCommand(languageClient: any, context: ExtensionContext): void {
@@ -184,7 +186,7 @@ function registerGenerateToStringCommand(languageClient: any, context: Extension
       }
     }
 
-    let fields: VariableField[] = []
+    let fields: VariableBinding[] = []
     if (result.fields && result.fields.length) {
       const fieldItems = result.fields.map(field => {
         return {
@@ -206,4 +208,104 @@ function registerGenerateToStringCommand(languageClient: any, context: Extension
     }))
     await applyWorkspaceEdit(workspaceEdit)
   }, null, true))
+}
+
+function registerGenerateConstructorsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+  context.subscriptions.push(commands.registerCommand(Commands.GENERATE_CONSTRUCTORS_PROMPT, async (params: CodeActionParams) => {
+    const status = await Promise.resolve(languageClient.sendRequest(CheckConstructorStatusRequest.type as any, params)) as CheckConstructorsResponse
+    if (!status || !status.constructors || !status.constructors.length) {
+      return
+    }
+
+    let selectedConstructors = status.constructors
+    let selectedFields = []
+    if (status.constructors.length > 1) {
+      const constructorItems = status.constructors.map(constructor => {
+        return {
+          label: `${constructor.name}(${constructor.parameters.join(',')})`,
+          originalConstructor: constructor,
+        }
+      })
+      let idx = await workspace.showQuickpick(constructorItems.map(o => o.label), 'Select super class constructor(s).')
+      if (idx == -1) return
+
+      selectedConstructors = [constructorItems[idx]].map(item => item.originalConstructor)
+    }
+
+    if (status.fields.length) {
+      const fieldItems = status.fields.map(field => {
+        return {
+          label: `${field.name}: ${field.type}`,
+          originalField: field,
+        }
+      })
+      let idx = await workspace.showQuickpick(fieldItems.map(o => o.label), 'Select fields to initialize by constructor(s).')
+      if (idx == -1) return
+
+      selectedFields = [fieldItems[idx]].map(item => item.originalField)
+    }
+
+    const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateConstructorsRequest.type as any, {
+      context: params,
+      constructors: selectedConstructors,
+      fields: selectedFields,
+    })) as any
+    await applyWorkspaceEdit(workspaceEdit)
+  }))
+}
+
+function registerGenerateDelegateMethodsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+  context.subscriptions.push(commands.registerCommand(Commands.GENERATE_DELEGATE_METHODS_PROMPT, async (params: CodeActionParams) => {
+    const status = await Promise.resolve(languageClient.sendRequest(CheckDelegateMethodsStatusRequest.type as any, params)) as any
+    if (!status || !status.delegateFields || !status.delegateFields.length) {
+      workspace.showMessage("All delegatable methods are already implemented.", 'warning')
+      return
+    }
+
+    let selectedDelegateField = status.delegateFields[0]
+    if (status.delegateFields.length > 1) {
+      const fieldItems = status.delegateFields.map(delegateField => {
+        return {
+          label: `${delegateField.field.name}: ${delegateField.field.type}`,
+          originalField: delegateField,
+        }
+      })
+      let idx = await workspace.showQuickpick(fieldItems.map(o => o.label), 'Select target to generate delegates for.')
+      if (idx == -1) {
+        return
+      }
+
+      selectedDelegateField = fieldItems[idx].originalField
+    }
+
+    let delegateEntryItems = selectedDelegateField.delegateMethods.map(delegateMethod => {
+      return {
+        label: `${selectedDelegateField.field.name}.${delegateMethod.name}(${delegateMethod.parameters.join(',')})`,
+        originalField: selectedDelegateField.field,
+        originalMethod: delegateMethod,
+      }
+    })
+
+    if (!delegateEntryItems.length) {
+      workspace.showMessage("All delegatable methods are already implemented.", 'warning')
+      return
+    }
+
+    let idx = await workspace.showQuickpick(delegateEntryItems.map(o => o.label), 'Select methods to generate delegates for.')
+    if (idx == -1) {
+      return
+    }
+
+    const delegateEntries = [delegateEntryItems[idx]].map(item => {
+      return {
+        field: item.originalField,
+        delegateMethod: item.originalMethod,
+      }
+    })
+    const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateDelegateMethodsRequest.type as any, {
+      context: params,
+      delegateEntries,
+    }))
+    await applyWorkspaceEdit(workspaceEdit)
+  }))
 }

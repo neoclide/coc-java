@@ -147,7 +147,7 @@ export namespace AddOverridableMethodsRequest {
   export const type = new RequestType<AddOverridableMethodParams, WorkspaceEdit, void, void>('java/addOverridableMethods')
 }
 
-export interface VariableField {
+export interface VariableBinding {
   bindingKey: string
   name: string
   type: string
@@ -155,7 +155,7 @@ export interface VariableField {
 
 export interface CheckHashCodeEqualsResponse {
   type: string
-  fields: VariableField[]
+  fields: VariableBinding[]
   existingMethods: string[]
 }
 
@@ -165,7 +165,7 @@ export namespace CheckHashCodeEqualsStatusRequest {
 
 export interface GenerateHashCodeEqualsParams {
   context: CodeActionParams
-  fields: VariableField[]
+  fields: VariableBinding[]
   regenerate: boolean
 }
 
@@ -189,7 +189,7 @@ export interface ImportSelection {
 
 export interface CheckToStringResponse {
   type: string
-  fields: VariableField[]
+  fields: VariableBinding[]
   exists: boolean
 }
 
@@ -199,7 +199,7 @@ export namespace CheckToStringStatusRequest {
 
 export interface GenerateToStringParams {
   context: CodeActionParams
-  fields: VariableField[]
+  fields: VariableBinding[]
 }
 
 export interface AccessorField {
@@ -224,4 +224,56 @@ export interface GenerateAccessorsParams {
 
 export namespace GenerateAccessorsRequest {
   export const type = new RequestType<GenerateAccessorsParams, WorkspaceEdit, void, void>('java/generateAccessors')
+}
+
+export interface MethodBinding {
+  bindingKey: string
+  name: string
+  parameters: string[]
+}
+
+export interface CheckConstructorsResponse {
+  constructors: MethodBinding[]
+  fields: VariableBinding[]
+}
+
+export namespace CheckConstructorStatusRequest {
+  export const type = new RequestType<CodeActionParams, CheckConstructorsResponse, void, void>('java/checkConstructorsStatus')
+}
+
+export interface GenerateConstructorsParams {
+  context: CodeActionParams
+  constructors: MethodBinding[]
+  fields: VariableBinding[]
+}
+
+export namespace GenerateConstructorsRequest {
+  export const type = new RequestType<GenerateConstructorsParams, WorkspaceEdit, void, void>('java/generateConstructors')
+}
+
+export interface DelegateField {
+  field: VariableBinding
+  delegateMethods: MethodBinding[]
+}
+
+export interface CheckDelegateMethodsResponse {
+  delegateFields: DelegateField[]
+}
+
+export namespace CheckDelegateMethodsStatusRequest {
+  export const type = new RequestType<CodeActionParams, CheckDelegateMethodsResponse, void, void>('java/checkDelegateMethodsStatus')
+}
+
+export interface DelegateEntry {
+  field: VariableBinding
+  delegateMethod: MethodBinding
+}
+
+export interface GenerateDelegateMethodsParams {
+  context: CodeActionParams
+  delegateEntries: DelegateEntry[]
+}
+
+export namespace GenerateDelegateMethodsRequest {
+  export const type = new RequestType<GenerateDelegateMethodsParams, WorkspaceEdit, void, void>('java/generateDelegateMethods')
 }
