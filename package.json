@@ -277,6 +277,12 @@
           "default": true,
           "scope": "window"
         },
+        "java.format.onType.fixComment.enabled": {
+          "type": "boolean",
+          "description": "Complete comment blocks when typing `/*`",
+          "default": true,
+          "scope": "window"
+        },
         "java.foldingRange.enabled": {
           "type": "boolean",
           "default": true,

@@ -405,7 +405,9 @@ async function start(server_home: string, requirements: RequirementsData, contex
   workspace.showMessage(`JDT Language Server starting at ${workspace.root}`)
   languageClient.start()
   context.subscriptions.push(services.registLanguageClient(languageClient))
-  fixComment(context.subscriptions)
+  if (javaConfig.get('format.onType.fixComment.enabled')) {
+    fixComment(context.subscriptions)
+  }
 }
 
 function logNotification(message: string, ..._items: string[]): void {
