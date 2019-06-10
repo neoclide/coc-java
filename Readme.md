@@ -47,15 +47,6 @@ The path to the Java Development Kit is searched in the following order:
 
 Please note that [Gradle-based Android projects are not supported](https://github.com/redhat-developer/vscode-java/issues/10#issuecomment-268834749).
 
-# Setting the JDK
-
-The path to the Java Development Kit is searched in the following order:
-
-- the `java.home` setting in VS Code settings (workspace then user settings)
-- the `JDK_HOME` environment variable
-- the `JAVA_HOME` environment variable
-- on the current system path
-
 # Available commands
 
 The following commands are available:
