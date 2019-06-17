@@ -17,9 +17,8 @@
   },
   "bugs": "https://github.com/neoclide/coc-java/issues",
   "scripts": {
-    "update": "gulp download_server",
     "clean": "rimraf lib",
-    "build": "tsc -p tsconfig.json",
+    "build": "webpack",
     "prepare": "npx npm-run-all clean build"
   },
   "activationEvents": [
@@ -411,16 +410,6 @@
     "@types/node": "^12.0.5",
     "@types/tunnel": "^0.0.0",
     "coc.nvim": "0.0.68",
-    "gulp": "^4.0.2",
-    "gulp-decompress": "2.0.2",
-    "gulp-download": "0.0.1",
-    "gulp-tslint": "^8.1.4",
-    "mocha": "^6.1.4",
-    "rimraf": "^2.6.3",
-    "tslint": "^5.17.0",
-    "typescript": "3.5.1"
-  },
-  "dependencies": {
     "compressing": "^1.4.0",
     "decompress": "^4.2.0",
     "expand-home-dir": "^0.0.3",
@@ -428,10 +417,17 @@
     "glob": "^7.1.4",
     "got": "^9.6.0",
     "mkdirp": "^0.5.1",
+    "mocha": "^6.1.4",
     "npm": "^6.9.0",
     "path-exists": "^4.0.0",
-    "tslib": "^1.9.3",
+    "rimraf": "^2.6.3",
+    "ts-loader": "^6.0.3",
+    "tslint": "^5.17.0",
     "tunnel": "^0.0.6",
-    "vscode-languageserver-protocol": "^3.15.0-next.1"
-  }
+    "typescript": "3.5.1",
+    "vscode-languageserver-protocol": "^3.15.0-next.1",
+    "webpack": "^4.34.0",
+    "webpack-cli": "^3.3.4"
+  },
+  "dependencies": {}
 }
