@@ -427,11 +427,9 @@
     "find-java-home": "0.2.0",
     "glob": "^7.1.4",
     "got": "^9.6.0",
-    "install": "^0.12.2",
     "mkdirp": "^0.5.1",
     "npm": "^6.9.0",
     "path-exists": "^4.0.0",
-    "tmp": "^0.1.0",
     "tslib": "^1.9.3",
     "tunnel": "^0.0.6",
     "vscode-languageserver-protocol": "^3.15.0-next.1"
