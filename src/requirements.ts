@@ -2,6 +2,7 @@
 
 import { workspace, Uri } from 'coc.nvim'
 import cp from 'child_process'
+import fs from 'fs'
 import path from 'path'
 import pathExists from 'path-exists'
 import expandHomeDir from 'expand-home-dir'
@@ -58,6 +59,10 @@ function checkJavaRuntime(): Promise<string> {
     }
     if (javaHome) {
       javaHome = expandHomeDir(javaHome)
+      let stat = fs.lstatSync(javaHome)
+      if (stat.isSymbolicLink()) {
+        javaHome = fs.realpathSync(javaHome)
+      }
       if (!pathExists.sync(javaHome)) {
         openJDKDownload(reject, source + ' points to a missing folder')
       }
