@@ -64,7 +64,7 @@ function prepareParams(requirements: RequirementsData, config: ServerConfigurati
   }
   let { vmargs, root } = config
   const encodingKey = '-Dfile.encoding='
-  if (vmargs.indexOf(encodingKey) < 0) {
+  if (vmargs.indexOf(encodingKey) < 0 && config.encoding) {
     params.push(encodingKey + config.encoding)
   }
   if (os.platform() == 'win32') {
