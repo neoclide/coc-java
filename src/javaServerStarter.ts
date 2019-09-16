@@ -1,4 +1,3 @@
-
 import os from 'os'
 import * as path from 'path'
 import * as net from 'net'
@@ -9,13 +8,16 @@ import { RequirementsData, ServerConfiguration } from './requirements'
 declare var v8debug
 const DEBUG = (typeof v8debug === 'object') || startedInDebugMode()
 
+const isWindows = process.platform.indexOf('win') === 0
+const JAVA_FILENAME = 'java' + (isWindows ? '.exe' : '')
+
 export function prepareExecutable(requirements: RequirementsData, workspacePath, config: ServerConfiguration): Executable {
   let executable: Executable = Object.create(null)
   let options = Object.create(null)
   options.env = process.env
   options.stdio = 'pipe'
   executable.options = options
-  executable.command = path.resolve(requirements.java_home + '/bin/java')
+  executable.command = path.resolve(requirements.java_home, 'bin', JAVA_FILENAME)
   executable.args = prepareParams(requirements, config, workspacePath)
   // tslint:disable-next-line: no-console
   console.log('Starting Java server with: ' + executable.command + ' ' + executable.args.join(' '))
