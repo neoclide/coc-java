@@ -10,6 +10,7 @@ import findJavaHome from 'find-java-home'
 
 const isWindows = process.platform.indexOf('win') === 0
 const JAVAC_FILENAME = 'javac' + (isWindows ? '.exe' : '')
+const JAVA_FILENAME = 'java' + (isWindows ? '.exe' : '')
 
 export interface ServerConfiguration {
   root: string
@@ -90,7 +91,7 @@ function readJavaConfig(): string {
 
 function checkJavaVersion(java_home: string): Promise<number> {
   return new Promise((resolve, reject) => {
-    cp.execFile(java_home + '/bin/java', ['-version'], {}, (_error, _stdout, stderr) => {
+    cp.execFile(java_home + '/bin/' + JAVA_FILENAME, ['-version'], {}, (_error, _stdout, stderr) => {
       let javaVersion = parseMajorVersion(stderr)
       if (javaVersion < 8) {
         openJDKDownload(reject, 'Java 8 or more recent is required to run. Please download and install a recent JDK')
