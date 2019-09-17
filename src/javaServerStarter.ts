@@ -46,9 +46,9 @@ export function awaitServerConnection(port): Thenable<StreamInfo> {
 function prepareParams(requirements: RequirementsData, config: ServerConfiguration, workspacePath: string): string[] {
   let params: string[] = []
   if (DEBUG) {
-    params.push('-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1044,quiet=y')
+    params.push('-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=localhost:1044,quiet=y')
     // suspend=y is the default. Use this form if you need to debug the server startup code:
-    //  params.push('-agentlib:jdwp=transport=dt_socket,server=y,address=1044')
+    //  params.push('-agentlib:jdwp=transport=dt_socket,server=y,address=localhost:1044')
   }
   if (requirements.java_version > 8) {
     params.push('--add-modules=ALL-SYSTEM',
