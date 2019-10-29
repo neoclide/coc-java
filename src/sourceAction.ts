@@ -17,6 +17,37 @@ export function registerCommands(languageClient: LanguageClient, context: Extens
   registerGenerateDelegateMethodsCommand(languageClient, context)
 }
 
+async function multiselectItems<T>(items: T[], labelGenerator: (_: T) => string, text: string): Promise<T[]> {
+  let result = []
+  let itemsCopy = [...items]
+  let options = ["Select all", "Cancel", ...items.map(labelGenerator)]
+
+  while (itemsCopy.length > 0) {
+    let idx = await workspace.showQuickpick(options, text)
+
+    if (idx == -1) {
+      break
+    }
+
+    if(idx >= options.length){
+      continue
+    }
+
+    switch (idx) {
+      case 0: return items
+      case 1: return undefined
+    }
+
+    let translatedIdx = idx - 2
+
+    result.push(itemsCopy[translatedIdx])
+    itemsCopy.splice(translatedIdx, 1)
+    options.splice(idx, 1)
+  }
+
+  return result
+}
+
 function registerOverrideMethodsCommand(languageClient: any, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.OVERRIDE_METHODS_PROMPT, async (params: CodeActionParams) => {
     const result = await Promise.resolve(languageClient.sendRequest(ListOverridableMethodsRequest.type, params))
@@ -39,17 +70,19 @@ function registerOverrideMethodsCommand(languageClient: any, context: ExtensionC
       return a.parameters.length - b.parameters.length
     })
 
-    const quickPickItems: string[] = result.methods.map(method => {
-      return `${method.name}(${method.parameters.join(',')})`
-    })
+    const methods: Array<{ name: string; parameters: Array<any> }> = result.methods
 
-    const res = await workspace.showQuickpick(quickPickItems, `Select methods to override or implement in ${result.type}`)
-    if (res == -1) return
-    let item = result.methods[res]
+    const selection = await multiselectItems(methods,
+      m => `${m.name}(${m.parameters.join(',')})`,
+      `Select methods to override or implement in ${result.type}`)
+
+    if (selection === undefined) {
+      return
+    }
 
     const workspaceEdit = await Promise.resolve(languageClient.sendRequest(AddOverridableMethodsRequest.type, {
       context: params,
-      overridableMethods: [item]
+      overridableMethods: selection
     }))
     await applyWorkspaceEdit(workspaceEdit)
   }))
@@ -71,23 +104,17 @@ function registerHashCodeEqualsCommand(languageClient: any, context: ExtensionCo
 
       regenerate = true
     }
+    let fields: Array<{ name: string, type: any }> = result.fields
 
-    const fieldItems = result.fields.map(field => {
-      return `${field.name}: ${field.type}`
-      // return {
-      //   label:
-      //   picked: true,
-      //   originalField: field
-      // }
-    })
+    const selection = await multiselectItems(fields, f => `${f.name}: ${f.type}`, 'Select the fields to include in the hashCode() and equals() methods.')
 
-    const idx = await workspace.showQuickpick(fieldItems, 'Select the fields to include in the hashCode() and equals() methods.')
-    if (idx == -1) return
-    let item = result.fields[idx]
+    if (selection === undefined) {
+      return
+    }
 
     const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateHashCodeEqualsRequest.type, {
       context: params,
-      fields: [item],
+      fields: selection,
       regenerate
     }))
     await applyWorkspaceEdit(workspaceEdit)
@@ -144,28 +171,33 @@ function registerGenerateAccessorsCommand(languageClient: any, context: Extensio
       return
     }
 
-    const accessorItems = accessors.map(accessor => {
-      const description = []
-      if (accessor.generateGetter) {
-        description.push('getter')
-      }
-      if (accessor.generateSetter) {
-        description.push('setter')
-      }
-      return {
-        label: accessor.fieldName,
-        description: (accessor.isStatic ? 'static ' : '') + description.join(', '),
-        originalField: accessor,
-      }
-    })
-    // TODO support multiple selection
-    const idx = await workspace.showQuickpick(accessorItems.map(o => o.label), 'Select the fields to generate getters and setters.')
-    if (idx == -1) return
-    const selectedAccessors = [accessorItems[idx]]
+    const accessorItems: Array<{ label: string; description: string; originalField: VariableBinding }> =
+      accessors.map(accessor => {
+        const description = []
+        if (accessor.generateGetter) {
+          description.push('getter')
+        }
+        if (accessor.generateSetter) {
+          description.push('setter')
+        }
+        return {
+          label: accessor.fieldName,
+          description: (accessor.isStatic ? 'static ' : '') + description.join(', '),
+          originalField: accessor,
+        }
+      })
+
+    let selection = await multiselectItems(accessorItems, o => o.label, 'Select the fields to generate getters and setters.')
+
+    if (selection === undefined) {
+      return
+    }
+
+    const selectedAccessors = selection.map(item => item.originalField)
 
     const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateAccessorsRequest.type, {
       context: params,
-      accessors: selectedAccessors.map(item => item.originalField),
+      accessors: selectedAccessors,
     }))
     await applyWorkspaceEdit(workspaceEdit)
   }, null, true))
@@ -188,18 +220,21 @@ function registerGenerateToStringCommand(languageClient: any, context: Extension
 
     let fields: VariableBinding[] = []
     if (result.fields && result.fields.length) {
-      const fieldItems = result.fields.map(field => {
-        return {
-          label: `${field.name}: ${field.type}`,
-          picked: true,
-          originalField: field
-        }
-      })
-      // TODO support multiple selection
-      const idx = await workspace.showQuickpick(fieldItems.map(o => o.label), 'Select the fields to include in the toString() method.')
-      if (idx == -1) return
-      let selectedFields = [fieldItems[idx]]
-      fields = selectedFields.map(item => item.originalField)
+      const fieldItems: Array<{ label: string; originalField: VariableBinding }> =
+        result.fields.map(field => {
+          return {
+            label: `${field.name}: ${field.type}`,
+            originalField: field
+          }
+        })
+
+      let selection = await multiselectItems(fieldItems, o => o.label, 'Select the fields to include in the toString() method.')
+
+      if (selection === undefined) {
+        return
+      }
+
+      fields = selection.map(i => i.originalField)
     }
 
     const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateToStringRequest.type, {
@@ -210,6 +245,7 @@ function registerGenerateToStringCommand(languageClient: any, context: Extension
   }, null, true))
 }
 
+
 function registerGenerateConstructorsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.GENERATE_CONSTRUCTORS_PROMPT, async (params: CodeActionParams) => {
     const status = await Promise.resolve(languageClient.sendRequest(CheckConstructorStatusRequest.type as any, params)) as CheckConstructorsResponse
@@ -219,6 +255,7 @@ function registerGenerateConstructorsCommand(languageClient: LanguageClient, con
 
     let selectedConstructors = status.constructors
     let selectedFields = []
+
     if (status.constructors.length > 1) {
       const constructorItems = status.constructors.map(constructor => {
         return {
@@ -239,10 +276,14 @@ function registerGenerateConstructorsCommand(languageClient: LanguageClient, con
           originalField: field,
         }
       })
-      let idx = await workspace.showQuickpick(fieldItems.map(o => o.label), 'Select fields to initialize by constructor(s).')
-      if (idx == -1) return
 
-      selectedFields = [fieldItems[idx]].map(item => item.originalField)
+      let selectionResult = await multiselectItems(fieldItems, o => o.label, 'Select fields to initialize by constructor(s).')
+
+      if (selectionResult === undefined) {
+        return;
+      }
+
+      selectedFields = selectionResult.map(i => i.originalField)
     }
 
     const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateConstructorsRequest.type as any, {
@@ -278,25 +319,27 @@ function registerGenerateDelegateMethodsCommand(languageClient: LanguageClient, 
       selectedDelegateField = fieldItems[idx].originalField
     }
 
-    let delegateEntryItems = selectedDelegateField.delegateMethods.map(delegateMethod => {
-      return {
-        label: `${selectedDelegateField.field.name}.${delegateMethod.name}(${delegateMethod.parameters.join(',')})`,
-        originalField: selectedDelegateField.field,
-        originalMethod: delegateMethod,
-      }
-    })
+    let delegateEntryItems: Array<{ label: string; originalField: any; originalMethod: any }> =
+      selectedDelegateField.delegateMethods.map(delegateMethod => {
+        return {
+          label: `${selectedDelegateField.field.name}.${delegateMethod.name}(${delegateMethod.parameters.join(',')})`,
+          originalField: selectedDelegateField.field,
+          originalMethod: delegateMethod,
+        }
+      })
 
     if (!delegateEntryItems.length) {
       workspace.showMessage("All delegatable methods are already implemented.", 'warning')
       return
     }
 
-    let idx = await workspace.showQuickpick(delegateEntryItems.map(o => o.label), 'Select methods to generate delegates for.')
-    if (idx == -1) {
+    let selection = await multiselectItems(delegateEntryItems, o => o.label, 'Select methods to generate delegates for.')
+
+    if (selection === undefined) {
       return
     }
 
-    const delegateEntries = [delegateEntryItems[idx]].map(item => {
+    const delegateEntries = selection.map(item => {
       return {
         field: item.originalField,
         delegateMethod: item.originalMethod,
