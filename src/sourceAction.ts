@@ -263,10 +263,14 @@ function registerGenerateConstructorsCommand(languageClient: LanguageClient, con
           originalConstructor: constructor,
         }
       })
-      let idx = await workspace.showQuickpick(constructorItems.map(o => o.label), 'Select super class constructor(s).')
-      if (idx == -1) return
+      
+      let selectionResult = await multiselectItems(constructorItems, o => o.label, 'Select super class constructor(s).')
 
-      selectedConstructors = [constructorItems[idx]].map(item => item.originalConstructor)
+      if (selectionResult === undefined) {
+        return;
+      }
+
+      selectedConstructors = selectionResult.map(i => i.originalConstructor)
     }
 
     if (status.fields.length) {
