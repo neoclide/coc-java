@@ -4,7 +4,7 @@ import { commands, ExtensionContext, LanguageClient, workspace } from 'coc.nvim'
 import { CodeActionParams, Range } from 'vscode-languageserver-protocol'
 import { Commands } from './commands'
 import { applyWorkspaceEdit } from './index'
-import { AddOverridableMethodsRequest, CheckConstructorsResponse, CheckConstructorStatusRequest, CheckDelegateMethodsStatusRequest, CheckHashCodeEqualsStatusRequest, CheckToStringStatusRequest, GenerateAccessorsRequest, GenerateConstructorsRequest, GenerateDelegateMethodsRequest, GenerateHashCodeEqualsRequest, GenerateToStringRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, OrganizeImportsRequest, ResolveUnimplementedAccessorsRequest, VariableBinding } from './protocol'
+import { AddOverridableMethodsRequest, CheckConstructorsResponse, CheckConstructorStatusRequest, CheckDelegateMethodsStatusRequest, CheckHashCodeEqualsStatusRequest, CheckToStringStatusRequest, GenerateAccessorsRequest, GenerateConstructorsRequest, GenerateDelegateMethodsRequest, GenerateHashCodeEqualsRequest, GenerateToStringRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, OrganizeImportsRequest, ResolveUnimplementedAccessorsRequest, VariableBinding, AccessorField } from './protocol'
 
 export function registerCommands(languageClient: LanguageClient, context: ExtensionContext): void {
   registerOverrideMethodsCommand(languageClient, context)
@@ -18,6 +18,10 @@ export function registerCommands(languageClient: LanguageClient, context: Extens
 }
 
 async function multiselectItems<T>(items: T[], labelGenerator: (_: T) => string, text: string): Promise<T[]> {
+  if (items.length == 0 || items.length == 1) {
+    return items
+  }
+
   let result = []
   let itemsCopy = [...items]
   let options = ["Select all", "Cancel", ...items.map(labelGenerator)]
@@ -29,7 +33,7 @@ async function multiselectItems<T>(items: T[], labelGenerator: (_: T) => string,
       break
     }
 
-    if(idx >= options.length){
+    if (idx >= options.length) {
       continue
     }
 
@@ -164,30 +168,33 @@ function registerChooseImportCommand(context: ExtensionContext): void {
 }
 
 function registerGenerateAccessorsCommand(languageClient: any, context: ExtensionContext): void {
-  // selector: DocumentSelector, provider: CodeActionProvider, clientId: string, codeActionKinds?: CodeActionKind[]
   context.subscriptions.push(commands.registerCommand(Commands.GENERATE_ACCESSORS_PROMPT, async (params: CodeActionParams) => {
-    const accessors = await Promise.resolve(languageClient.sendRequest(ResolveUnimplementedAccessorsRequest.type, params))
+
+    const accessors: AccessorField[] =
+      await Promise.resolve(languageClient.sendRequest(ResolveUnimplementedAccessorsRequest.type, params))
+
     if (!accessors || !accessors.length) {
       return
     }
 
-    const accessorItems: Array<{ label: string; description: string; originalField: VariableBinding }> =
-      accessors.map(accessor => {
-        const description = []
-        if (accessor.generateGetter) {
-          description.push('getter')
-        }
-        if (accessor.generateSetter) {
-          description.push('setter')
-        }
-        return {
-          label: accessor.fieldName,
-          description: (accessor.isStatic ? 'static ' : '') + description.join(', '),
-          originalField: accessor,
-        }
-      })
+    let getterSetterOptions = determineGetterSetterOptions(accessors);
 
-    let selection = await multiselectItems(accessorItems, o => o.label, 'Select the fields to generate getters and setters.')
+    let generationResult = await multiselectItems(getterSetterOptions, s => s, 'Select what to generate')
+
+    if (generationResult === undefined) {
+      return
+    }
+
+    const shouldGenerateGetter = generationResult.includes('Getter')
+    const shouldGenerateSetter = generationResult.includes('Setter')
+
+    const accessorItems = prepareGetterSetterFieldOptions(accessors, shouldGenerateGetter, shouldGenerateSetter)
+
+    const text = generationResult
+      .map(str => str.toLowerCase() + 's')
+      .join(' and ')
+
+    let selection = await multiselectItems(accessorItems, o => o.label, `Select the fields to generate ${text}`)
 
     if (selection === undefined) {
       return
@@ -201,6 +208,47 @@ function registerGenerateAccessorsCommand(languageClient: any, context: Extensio
     }))
     await applyWorkspaceEdit(workspaceEdit)
   }, null, true))
+}
+
+function prepareGetterSetterFieldOptions(
+  accessors: AccessorField[],
+  shouldGenerateGetter: boolean,
+  shouldGenerateSetter: boolean
+): { label: string; originalField: AccessorField; }[] {
+
+  let result = accessors
+    .filter(({ generateGetter, generateSetter }) =>
+      (shouldGenerateGetter && generateGetter) ||
+      (shouldGenerateSetter && generateSetter))
+    .map(accessor => {
+      const generateGetter = shouldGenerateGetter && accessor.generateGetter
+      const generateSetter = shouldGenerateSetter && accessor.generateSetter
+
+      return {
+        label: accessor.fieldName,
+        originalField: {
+          ...accessor,
+          generateGetter: shouldGenerateGetter,
+          generateSetter: shouldGenerateSetter
+        },
+      }
+    })
+
+  return result
+}
+
+function determineGetterSetterOptions(accessors: AccessorField[]): string[] {
+  let getterSetterOptions = []
+
+  if (accessors.some(({ generateSetter }) => generateSetter)) {
+    getterSetterOptions.push('Setter')
+  }
+
+  if (accessors.some(({ generateGetter }) => generateGetter)) {
+    getterSetterOptions.push('Getter')
+  }
+
+  return getterSetterOptions
 }
 
 function registerGenerateToStringCommand(languageClient: any, context: ExtensionContext): void {
@@ -263,7 +311,7 @@ function registerGenerateConstructorsCommand(languageClient: LanguageClient, con
           originalConstructor: constructor,
         }
       })
-      
+
       let selectionResult = await multiselectItems(constructorItems, o => o.label, 'Select super class constructor(s).')
 
       if (selectionResult === undefined) {
