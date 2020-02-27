@@ -1,4 +1,4 @@
-import { Uri, extensions, commands, CompletionContext, ExtensionContext, LanguageClient, LanguageClientOptions, MsgTypes, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, workspace } from 'coc.nvim'
+import { Uri, extensions, commands, CompletionContext, ExtensionContext, LanguageClient, LanguageClientOptions, MsgTypes, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, workspace, ResolveCompletionItemSignature } from 'coc.nvim'
 import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as glob from 'glob'
@@ -175,6 +175,18 @@ async function start(server_home: string, requirements: RequirementsData, contex
             }
           }
           return result
+        })
+      },
+      resolveCompletionItem: (
+        item: CompletionItem,
+        token: CancellationToken,
+        next: ResolveCompletionItemSignature,
+      ): ProviderResult<CompletionItem> => {
+        return Promise.resolve(next(item, token)).then(resolved => {
+          if (resolved) {
+            resolved.insertTextFormat = item.insertTextFormat
+          }
+          return resolved || item
         })
       }
     }
