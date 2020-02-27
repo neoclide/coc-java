@@ -176,18 +176,6 @@ async function start(server_home: string, requirements: RequirementsData, contex
           }
           return result
         })
-      },
-      resolveCompletionItem: (
-        item: CompletionItem,
-        token: CancellationToken,
-        next: ResolveCompletionItemSignature,
-      ): ProviderResult<CompletionItem> => {
-        return Promise.resolve(next(item, token)).then(resolved => {
-          if (resolved) {
-            resolved.insertTextFormat = item.insertTextFormat
-          }
-          return resolved || item
-        })
       }
     }
   }
