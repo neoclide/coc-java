@@ -383,6 +383,11 @@
           "description": "Limit number of items in arrays/collections/maps to list, if 0 then list all.",
           "default": 0,
           "scope": "window"
+        },
+        "java.import.callback": {
+          "type": "string",
+          "description": "Name of vim function to call for choosing import candidates",
+          "scope": "window"
         }
       }
     },

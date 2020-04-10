@@ -143,6 +143,10 @@ function registerOrganizeImportsCommand(languageClient: any, context: ExtensionC
 function registerChooseImportCommand(context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.CHOOSE_IMPORTS, async (_uri: string, selections: ImportSelection[]) => {
     const chosen: ImportCandidate[] = []
+
+    const config = workspace.getConfiguration('java')
+    const callback = config.get<string>('import.callback', null)
+
     // tslint:disable-next-line: prefer-for-of
     for (let i = 0; i < selections.length; i++) {
       const selection: ImportSelection = selections[i]
@@ -151,7 +155,16 @@ function registerChooseImportCommand(context: ExtensionContext): void {
       const candidates: ImportCandidate[] = selection.candidates
       const fullyQualifiedName = candidates[0].fullyQualifiedName
       const typeName = fullyQualifiedName.substring(fullyQualifiedName.lastIndexOf(".") + 1)
+
       try {
+        if (callback != null) {
+          let res = await workspace.nvim.call(callback, [candidates.map(o => o.fullyQualifiedName)])
+          if (res != -1) {
+            chosen.push(candidates[res])
+            break
+          }
+        }
+
         let res = await workspace.showQuickpick(candidates.map(o => o.fullyQualifiedName), `Choose type '${typeName}' to import`)
         if (res == -1) {
           chosen.push(null)
@@ -159,6 +172,8 @@ function registerChooseImportCommand(context: ExtensionContext): void {
         }
         chosen.push(candidates[res])
       } catch (err) {
+        // tslint:disable:no-console
+        console.error(err)
         break
       }
     }
