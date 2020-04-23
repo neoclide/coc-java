@@ -27,6 +27,7 @@ let serverStatus: 'Starting' | 'Started' | 'Error' = 'Starting'
 
 export async function activate(context: ExtensionContext): Promise<ExtensionAPI> {
   let javaConfig = workspace.getConfiguration('java')
+  if (!javaConfig.get<boolean>('enabled', true)) return
   let server_home: string = javaConfig.get('jdt.ls.home', '')
   if (server_home) {
     let launchersFound: string[] = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', { cwd: server_home })

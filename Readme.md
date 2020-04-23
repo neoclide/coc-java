@@ -63,6 +63,7 @@ The following commands are available:
 
 The following settings are supported:
 
+- `java.enabled`: When false, coc-java is disabled, default `true`.
 - `java.home` : Absolute path to JDK 8 home folder used to launch the Java Language Server. Requires coc server restart.
 - `java.jdt.ls.vmargs` : Extra VM arguments used to launch the Java Language Server. Requires coc server restart.
 - `java.jdt.ls.home` : Directory contains jdt.ls server, would be used instead of bundled server when specified.

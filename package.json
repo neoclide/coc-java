@@ -49,6 +49,11 @@
       "type": "object",
       "title": "Java configuration",
       "properties": {
+        "java.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "When false, coc-java is disabled."
+        },
         "java.home": {
           "type": [
             "string",
