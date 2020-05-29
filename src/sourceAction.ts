@@ -1,6 +1,6 @@
 'use strict'
 
-import { commands, ExtensionContext, LanguageClient, workspace } from 'coc.nvim'
+import { commands, ExtensionContext, LanguageClient, workspace, languages } from 'coc.nvim'
 import { CodeActionParams, Range } from 'vscode-languageserver-protocol'
 import { Commands } from './commands'
 import { applyWorkspaceEdit } from './index'
@@ -89,7 +89,7 @@ function registerOverrideMethodsCommand(languageClient: any, context: ExtensionC
       overridableMethods: selection
     }))
     await applyWorkspaceEdit(workspaceEdit)
-  }))
+  }, null, true))
 }
 
 function registerHashCodeEqualsCommand(languageClient: any, context: ExtensionContext): void {
@@ -122,7 +122,7 @@ function registerHashCodeEqualsCommand(languageClient: any, context: ExtensionCo
       regenerate
     }))
     await applyWorkspaceEdit(workspaceEdit)
-  }))
+  }, null, true))
 }
 
 function registerOrganizeImportsCommand(languageClient: any, context: ExtensionContext): void {
@@ -359,7 +359,7 @@ function registerGenerateConstructorsCommand(languageClient: LanguageClient, con
       fields: selectedFields,
     })) as any
     await applyWorkspaceEdit(workspaceEdit)
-  }))
+  }, null, true))
 }
 
 function registerGenerateDelegateMethodsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
@@ -417,5 +417,5 @@ function registerGenerateDelegateMethodsCommand(languageClient: LanguageClient, 
       delegateEntries,
     }))
     await applyWorkspaceEdit(workspaceEdit)
-  }))
+  }, null, true))
 }
