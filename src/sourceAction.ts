@@ -150,8 +150,6 @@ function registerChooseImportCommand(context: ExtensionContext): void {
     // tslint:disable-next-line: prefer-for-of
     for (let i = 0; i < selections.length; i++) {
       const selection: ImportSelection = selections[i]
-      // Move the cursor to the code line with ambiguous import choices.
-      await workspace.moveTo(selection.range.start)
       const candidates: ImportCandidate[] = selection.candidates
       const fullyQualifiedName = candidates[0].fullyQualifiedName
       const typeName = fullyQualifiedName.substring(fullyQualifiedName.lastIndexOf(".") + 1)
@@ -164,6 +162,9 @@ function registerChooseImportCommand(context: ExtensionContext): void {
             break
           }
         }
+
+        // Move the cursor to the code line with ambiguous import choices.
+        await workspace.moveTo(selection.range.start)
 
         let res = await workspace.showQuickpick(candidates.map(o => o.fullyQualifiedName), `Choose type '${typeName}' to import`)
         if (res == -1) {
