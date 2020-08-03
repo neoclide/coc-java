@@ -128,6 +128,32 @@
           "description": "Enable/disable the Gradle importer.",
           "scope": "window"
         },
+        "java.imports.gradle.wrapper.checksums": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "default": {},
+            "required": [
+              "sha256"
+            ],
+            "properties": {
+              "sha256": {
+                "type": "string",
+                "label": "SHA-256 checksum."
+              },
+              "allowed": {
+                "type": "boolean",
+                "default": true,
+                "label": "Is allowed?"
+              }
+            },
+            "additionalProperties": false,
+            "uniqueItems": true
+          },
+          "description": "Defines allowed/disallowed SHA-256 checksums of Gradle Wrappers",
+          "default": null,
+          "scope": "application"
+        },
         "java.import.gradle.wrapper.enabled": {
           "type": "boolean",
           "default": true,
