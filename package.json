@@ -419,6 +419,55 @@
           "type": "string",
           "description": "Name of vim function to call for choosing import candidates",
           "scope": "window"
+        },
+        "java.configuration.runtimes": {
+          "type": "array",
+          "description": "Map Java Execution Environments to local JDKs.",
+          "items": {
+            "type": "object",
+            "default": {},
+            "required": [
+              "path",
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "enum": [
+                  "J2SE-1.5",
+                  "JavaSE-1.6",
+                  "JavaSE-1.7",
+                  "JavaSE-1.8",
+                  "JavaSE-9",
+                  "JavaSE-10",
+                  "JavaSE-11",
+                  "JavaSE-12",
+                  "JavaSE-13",
+                  "JavaSE-14"
+                ],
+                "description": "Java Execution Environment name. Must be unique."
+              },
+              "path": {
+                "type": "string",
+                "description": "JDK path.\nOn Windows, backslashes must be escaped, i.e.\n\"path\":\"C:\\\\Program Files\\\\Java\\\\jdk1.8.0_161\"."
+              },
+              "sources": {
+                "type": "string",
+                "description": "JDK sources path."
+              },
+              "javadoc": {
+                "type": "string",
+                "description": "JDK javadoc path."
+              },
+              "default": {
+                "type": "boolean",
+                "description": "Is default runtime? Only one runtime can be default."
+              }
+            },
+            "additionalProperties": false
+          },
+          "default": [],
+          "scope": "machine"
         }
       }
     },
