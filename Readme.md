@@ -27,6 +27,29 @@ The path to the Java Development Kit is searched in the following order:
 - the `JAVA_HOME` environment variable
 - on the current system path
 
+This JDK will be used to launch the Java Language Server. And by default, will be used to compile your projects.
+
+If you need to compile your projects against a different JDK version, it's recommended you configure the `java.configuration.runtimes` property in your user settings, eg:
+
+```json
+"java.configuration.runtimes": [
+  {
+    "name": "JavaSE-1.8",
+    "path": "/path/to/jdk-8",
+  },
+  {
+    "name": "JavaSE-11",
+    "path": "/path/to/jdk-11",
+  },
+  {
+    "name": "JavaSE-14",
+    "path": "/path/to/jdk-14",
+    "default": true
+  },
+]
+```
+The default runtime will be used when you open standalone Java files.
+
 # Features
 
 - Maven pom.xml project support
@@ -92,6 +115,7 @@ The following settings are supported:
 - `java.completion.enabled` : Enable/disable code completion support.
 - `java.clean.workspace` : Clean the Java language server workspace.
 - `java.foldingRange.enabled`: Enable/disable smart folding range support. If disabled, it will use the default indentation-based folding range provided by VS Code.
+* `java.configuration.runtimes`: Map Java Execution Environments to local JDKs.
 
 New in 1.3.0:
 
