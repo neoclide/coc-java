@@ -157,13 +157,55 @@
         "java.import.gradle.wrapper.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable/disable the Gradle wrapper.",
+          "description": "Use Gradle from the 'gradle-wrapper.properties' file.",
           "scope": "window"
         },
         "java.import.gradle.version": {
           "type": "string",
           "default": null,
-          "description": "Gradle version, used if the gradle wrapper is missing or disabled.",
+          "description": "Use Gradle from the specific version if the Gradle wrapper is missing or disabled.",
+          "scope": "window"
+        },
+        "java.import.gradle.home": {
+          "type": "string",
+          "default": null,
+          "description": "Use Gradle from the specified local installation directory or GRADLE_HOME if the Gradle wrapper is missing or disabled and no 'java.import.gradle.version' is specified.",
+          "scope": "window"
+        },
+        "java.import.gradle.java.home": {
+          "type": "string",
+          "default": null,
+          "description": "The location to the JVM used to run the Gradle daemon.",
+          "scope": "machine"
+        },
+        "java.import.gradle.offline.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable/disable the Gradle offline mode.",
+          "scope": "window"
+        },
+        "java.import.gradle.arguments": {
+          "type": "string",
+          "default": null,
+          "description": "Arguments to pass to Gradle.",
+          "scope": "machine"
+        },
+        "java.import.gradle.jvmArguments": {
+          "type": "string",
+          "default": null,
+          "description": "JVM arguments to pass to Gradle.",
+          "scope": "machine"
+        },
+        "java.import.gradle.user.home": {
+          "type": "string",
+          "default": null,
+          "description": "Setting for GRADLE_USER_HOME.",
+          "scope": "window"
+        },
+        "java.maven.updateSnapshots": {
+          "type": "boolean",
+          "default": false,
+          "description": "Force update of Snapshots/Releases.",
           "scope": "window"
         },
         "java.import.maven.enabled": {
@@ -202,9 +244,15 @@
           "description": "Enable/disable default Java formatter",
           "scope": "window"
         },
+        "java.saveActions.organizeImports": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable/disable auto organize imports on save action",
+          "scope": "window"
+        },
         "java.import.exclusions": {
           "type": "array",
-          "description": "Configure glob patterns for excluding folders",
+          "description": "Configure glob patterns for excluding folders. Use `!` to negate patterns to allow subfolders imports. You have to include a parent directory. The order is important.",
           "default": [
             "**/node_modules/**",
             "**/.metadata/**",
@@ -258,6 +306,12 @@
           "scope": "window",
           "minimum": 1
         },
+        "java.completion.maxResults": {
+          "type": "integer",
+          "default": 0,
+          "markdownDescription": "Maximum number of completion results (not including snippets).\n`0` (the default value) disables the limit, all results are returned. In case of performance problems, consider setting a sensible limit.",
+          "scope": "window"
+        },
         "java.completion.enabled": {
           "type": "boolean",
           "default": true,
@@ -289,6 +343,15 @@
             "org.mockito.Mockito.*",
             "org.mockito.ArgumentMatchers.*",
             "org.mockito.Answers.*"
+          ],
+          "scope": "window"
+        },
+        "java.completion.filteredTypes": {
+          "type": "array",
+          "description": "Defines the type filters. All types whose fully qualified name matches the selected filter strings will be ignored in content assist or quick fix proposals and when organizing imports. For example 'java.awt.*' will hide all types from the awt packages.",
+          "default": [
+            "java.awt.*",
+            "com.sun.*"
           ],
           "scope": "window"
         },
@@ -415,6 +478,12 @@
           "default": 0,
           "scope": "window"
         },
+        "java.selectionRange.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable Smart Selection support for Java. Disabling this option will not affect the coc java built-in word-based and bracket-based smart selection.",
+          "scope": "window"
+        },
         "java.import.callback": {
           "type": "string",
           "description": "Name of vim function to call for choosing import candidates",
@@ -468,6 +537,44 @@
           },
           "default": [],
           "scope": "machine"
+        },
+        "java.sources.organizeImports.starThreshold": {
+          "type": "integer",
+          "description": "Specifies the number of imports added before a star-import declaration is used.",
+          "default": 99,
+          "scope": "window"
+        },
+        "java.sources.organizeImports.staticStarThreshold": {
+          "type": "integer",
+          "description": "Specifies the number of static imports added before a star-import declaration is used.",
+          "default": 99
+        },
+        "java.project.resourceFilters": {
+          "type": "array",
+          "default": [
+            "node_modules",
+            ".git"
+          ],
+          "description": "Excludes files and folders from being refreshed by the Java Language Server, which can improve the overall performance. For example, [\"node_modules\",\".git\"] will exclude all files and folders named 'node_modules' or '.git'. Defaults to [\"node_modules\",\".git\"].",
+          "scope": "window"
+        },
+        "java.templates.fileHeader": {
+          "type": "array",
+          "markdownDescription": "Specifies the file header comment for new Java file. Supports configuring multi-line comments with an array of strings, and using ${variable} to reference the [predefined variables](command:_java.templateVariables).",
+          "scope": "window",
+          "default": []
+        },
+        "java.templates.typeComment": {
+          "type": "array",
+          "markdownDescription": "Specifies the type comment for new Java type. Supports configuring multi-line comments with an array of strings, and using ${variable} to reference the [predefined variables](command:_java.templateVariables).",
+          "scope": "window",
+          "default": []
+        },
+        "java.references.includeAccessors": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include getter, setter and builder/constructor when finding references.",
+          "scope": "window"
         }
       }
     },
