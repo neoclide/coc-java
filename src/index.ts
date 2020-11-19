@@ -1,4 +1,4 @@
-import { Uri, extensions, commands, CompletionContext, ExtensionContext, LanguageClient, LanguageClientOptions, MsgTypes, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, workspace, ResolveCompletionItemSignature } from 'coc.nvim'
+import { commands, CompletionContext, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, MsgTypes, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, Uri, workspace } from 'coc.nvim'
 import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as glob from 'glob'
@@ -6,8 +6,8 @@ import mkdirp from 'mkdirp'
 import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
-import { CancellationToken, CompletionItem, CompletionItemKind, CompletionList, Emitter, ExecuteCommandParams, ExecuteCommandRequest, Location, Position, TextDocument, WorkspaceEdit } from 'vscode-languageserver-protocol'
 import rimraf from 'rimraf'
+import { CancellationToken, CompletionItem, CompletionItemKind, CompletionList, Emitter, ExecuteCommandParams, ExecuteCommandRequest, Location, Position, TextDocument, WorkspaceEdit } from 'vscode-languageserver-protocol'
 import * as buildpath from './buildpath'
 import { Commands } from './commands'
 import { downloadServer } from './downloader'
@@ -577,17 +577,29 @@ export async function applyWorkspaceEdit(edit: WorkspaceEdit): Promise<void> {
 }
 
 async function fixWorkspaceEdit(edit: WorkspaceEdit): Promise<WorkspaceEdit> {
-  let { changes } = edit
+  let { changes, documentChanges } = edit
   if (!changes || Object.keys(changes).length == 0) return edit
   let doc = await workspace.document
   let opts = await workspace.getFormatOptions(doc.uri)
   if (!opts.insertSpaces) return edit
-  for (let uri of Object.keys(changes)) {
+  for (let uri of Object.keys(changes || {})) {
     let edits = changes[uri]
     for (let ed of edits) {
       if (ed.newText.indexOf('\t') !== -1) {
         let ind = (new Array(opts.tabSize || 2)).fill(' ').join('')
         ed.newText = ed.newText.replace(/\t/g, ind)
+      }
+    }
+  }
+  if (Array.isArray(documentChanges)) {
+    for (let change of documentChanges) {
+      if (Array.isArray(change['edits'])) {
+        change['edits'].forEach(ed => {
+          if (ed.newText.indexOf('\t') !== -1) {
+            let ind = (new Array(opts.tabSize || 2)).fill(' ').join('')
+            ed.newText = ed.newText.replace(/\t/g, ind)
+          }
+        })
       }
     }
   }
