@@ -49,7 +49,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
     }
     return
   }
-  workspace.showMessage(`Using java from ${requirements.java_home}, version: ${requirements.java_version}`, 'more')
+  context.logger.info(`Using java from ${requirements.java_home}, version: ${requirements.java_version}`)
 
   start(server_home, requirements, context).catch(e => {
     // tslint:disable-next-line: no-console
@@ -229,7 +229,6 @@ async function start(server_home: string, requirements: RequirementsData, contex
           statusItem.text = 'JDT.LS'
           statusItem.show()
           serverStatus = 'Started'
-          workspace.showMessage('JDT Language Server started')
           languageClient.info('JDT Language Server started', { javaRequirement: requirements, apiVersion: '0.2' })
           break
         case 'Error':
@@ -403,7 +402,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
     }
   }
 
-  workspace.showMessage(`JDT Language Server starting at ${workspace.root}`)
+  context.logger.info(`JDT Language Server starting at ${workspace.root}`)
   languageClient.start()
   context.subscriptions.push(services.registLanguageClient(languageClient))
   if (javaConfig.get('format.onType.fixComment.enabled')) {
