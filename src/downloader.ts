@@ -11,7 +11,7 @@ export async function downloadServer(root: string): Promise<void> {
   let proxy = config.get<string>('proxy', '')
   let options: any = { encoding: null }
   if (proxy) {
-    let parts = proxy.split(':', 2)
+    let parts = proxy.replace(/^https?:\/\//, '').split(':', 2)
     options.agent = tunnel.httpOverHttp({
       proxy: {
         headers: {},
