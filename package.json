@@ -620,7 +620,6 @@
   "license": "EPL-1.0",
   "devDependencies": {
     "@chemzqm/tsconfig": "^0.0.3",
-    "@chemzqm/tslint-config": "^1.0.18",
     "@types/glob": "7.1.1",
     "@types/got": "^9.4.4",
     "@types/mkdirp": "^0.5.2",
