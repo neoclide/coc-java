@@ -1,10 +1,8 @@
-'use strict'
-
-import { commands, ExtensionContext, LanguageClient, workspace, languages } from 'coc.nvim'
+import { commands, ExtensionContext, LanguageClient, window, workspace } from 'coc.nvim'
 import { CodeActionParams, Range } from 'vscode-languageserver-protocol'
 import { Commands } from './commands'
 import { applyWorkspaceEdit } from './index'
-import { AddOverridableMethodsRequest, CheckConstructorsResponse, CheckConstructorStatusRequest, CheckDelegateMethodsStatusRequest, CheckHashCodeEqualsStatusRequest, CheckToStringStatusRequest, GenerateAccessorsRequest, GenerateConstructorsRequest, GenerateDelegateMethodsRequest, GenerateHashCodeEqualsRequest, GenerateToStringRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, OrganizeImportsRequest, ResolveUnimplementedAccessorsRequest, VariableBinding, AccessorField } from './protocol'
+import { AccessorField, AddOverridableMethodsRequest, CheckConstructorsResponse, CheckConstructorStatusRequest, CheckDelegateMethodsStatusRequest, CheckHashCodeEqualsStatusRequest, CheckToStringStatusRequest, GenerateAccessorsRequest, GenerateConstructorsRequest, GenerateDelegateMethodsRequest, GenerateHashCodeEqualsRequest, GenerateToStringRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, OrganizeImportsRequest, ResolveUnimplementedAccessorsRequest, VariableBinding } from './protocol'
 
 export function registerCommands(languageClient: LanguageClient, context: ExtensionContext): void {
   registerOverrideMethodsCommand(languageClient, context)
@@ -27,7 +25,7 @@ async function multiselectItems<T>(items: T[], labelGenerator: (_: T) => string,
   let options = ["Select all", "Cancel", ...items.map(labelGenerator)]
 
   while (itemsCopy.length > 0) {
-    let idx = await workspace.showQuickpick(options, text)
+    let idx = await window.showQuickpick(options, text)
 
     if (idx == -1) {
       break
@@ -56,7 +54,7 @@ function registerOverrideMethodsCommand(languageClient: any, context: ExtensionC
   context.subscriptions.push(commands.registerCommand(Commands.OVERRIDE_METHODS_PROMPT, async (params: CodeActionParams) => {
     const result = await Promise.resolve(languageClient.sendRequest(ListOverridableMethodsRequest.type, params))
     if (!result || !result.methods || !result.methods.length) {
-      workspace.showMessage('No overridable methods found in the super type.', 'warning')
+      window.showMessage('No overridable methods found in the super type.', 'warning')
       return
     }
 
@@ -96,13 +94,13 @@ function registerHashCodeEqualsCommand(languageClient: any, context: ExtensionCo
   context.subscriptions.push(commands.registerCommand(Commands.HASHCODE_EQUALS_PROMPT, async (params: CodeActionParams) => {
     const result = await Promise.resolve(languageClient.sendRequest(CheckHashCodeEqualsStatusRequest.type, params))
     if (!result || !result.fields || !result.fields.length) {
-      workspace.showMessage(`The operation is not applicable to the type ${result.type}.`, 'error')
+      window.showMessage(`The operation is not applicable to the type ${result.type}.`, 'error')
       return
     }
 
     let regenerate = false
     if (result.existingMethods && result.existingMethods.length) {
-      const ans = await workspace.showPrompt(`Methods ${result.existingMethods.join(' and ')} already ${result.existingMethods.length === 1 ? 'exists' : 'exist'} in the Class '${result.type}'. `
+      const ans = await window.showPrompt(`Methods ${result.existingMethods.join(' and ')} already ${result.existingMethods.length === 1 ? 'exists' : 'exist'} in the Class '${result.type}'. `
         + 'Do you want to regenerate the implementation?')
       if (!ans) return
 
@@ -164,9 +162,9 @@ function registerChooseImportCommand(context: ExtensionContext): void {
         }
 
         // Move the cursor to the code line with ambiguous import choices.
-        await workspace.moveTo(selection.range.start)
+        await window.moveTo(selection.range.start)
 
-        let res = await workspace.showQuickpick(candidates.map(o => o.fullyQualifiedName), `Choose type '${typeName}' to import`)
+        let res = await window.showQuickpick(candidates.map(o => o.fullyQualifiedName), `Choose type '${typeName}' to import`)
         if (res == -1) {
           chosen.push(null)
           continue
@@ -275,7 +273,7 @@ function registerGenerateToStringCommand(languageClient: any, context: Extension
     }
 
     if (result.exists) {
-      const ans = await workspace.showPrompt(`Method 'toString()' already exists in the Class '${result.type}'. `
+      const ans = await window.showPrompt(`Method 'toString()' already exists in the Class '${result.type}'. `
         + 'Do you want to replace the implementation?')
       if (!ans) {
         return
@@ -367,7 +365,7 @@ function registerGenerateDelegateMethodsCommand(languageClient: LanguageClient, 
   context.subscriptions.push(commands.registerCommand(Commands.GENERATE_DELEGATE_METHODS_PROMPT, async (params: CodeActionParams) => {
     const status = await Promise.resolve(languageClient.sendRequest(CheckDelegateMethodsStatusRequest.type as any, params)) as any
     if (!status || !status.delegateFields || !status.delegateFields.length) {
-      workspace.showMessage("All delegatable methods are already implemented.", 'warning')
+      window.showMessage("All delegatable methods are already implemented.", 'warning')
       return
     }
 
@@ -379,7 +377,7 @@ function registerGenerateDelegateMethodsCommand(languageClient: LanguageClient, 
           originalField: delegateField,
         }
       })
-      let idx = await workspace.showQuickpick(fieldItems.map(o => o.label), 'Select target to generate delegates for.')
+      let idx = await window.showQuickpick(fieldItems.map(o => o.label), 'Select target to generate delegates for.')
       if (idx == -1) {
         return
       }
@@ -397,7 +395,7 @@ function registerGenerateDelegateMethodsCommand(languageClient: LanguageClient, 
       })
 
     if (!delegateEntryItems.length) {
-      workspace.showMessage("All delegatable methods are already implemented.", 'warning')
+      window.showMessage("All delegatable methods are already implemented.", 'warning')
       return
     }
 

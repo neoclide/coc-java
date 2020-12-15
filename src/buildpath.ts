@@ -1,6 +1,4 @@
-'use strict'
-
-import { commands, Uri, ExtensionContext, workspace } from 'coc.nvim'
+import { commands, ExtensionContext, Uri, window } from 'coc.nvim'
 import { Commands } from './commands'
 
 interface Result {
@@ -24,9 +22,9 @@ export function registerCommands(context: ExtensionContext): void {
     const result = await Promise.resolve(commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.ADD_TO_SOURCEPATH, uri.toString())) as any
     if (!result) return
     if (result.status) {
-      workspace.showMessage(result.message ? result.message : 'Successfully added the folder to the source path.', 'more')
+      window.showMessage(result.message ? result.message : 'Successfully added the folder to the source path.', 'more')
     } else {
-      workspace.showMessage(result.message, 'error')
+      window.showMessage(result.message, 'error')
     }
   }, null, true))
 
@@ -34,9 +32,9 @@ export function registerCommands(context: ExtensionContext): void {
     const result = await Promise.resolve(commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.REMOVE_FROM_SOURCEPATH, uri.toString())) as any
     if (!result) return
     if (result.status) {
-      workspace.showMessage(result.message ? result.message : 'Successfully remove the folder from the source path.', 'more')
+      window.showMessage(result.message ? result.message : 'Successfully remove the folder from the source path.', 'more')
     } else {
-      workspace.showMessage(result.message, 'error')
+      window.showMessage(result.message, 'error')
     }
   }, null, true))
 
@@ -45,14 +43,14 @@ export function registerCommands(context: ExtensionContext): void {
     if (!result) return
     if (result.status) {
       if (!result.data || !result.data.length) {
-        workspace.showMessage("No Java source directories found in the workspace, please use the command 'Add Folder to Java Source Path' first.", 'warning')
+        window.showMessage("No Java source directories found in the workspace, please use the command 'Add Folder to Java Source Path' first.", 'warning')
       } else {
-        let res = await workspace.showQuickpick(result.data.map(sourcePath => {
+        let res = await window.showQuickpick(result.data.map(sourcePath => {
           return sourcePath.displayPath
         }), 'All Java source directories recognized by the workspace.')
       }
     } else {
-      workspace.showMessage(result.message, 'error')
+      window.showMessage(result.message, 'error')
     }
   }))
 }

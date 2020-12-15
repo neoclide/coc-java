@@ -1,6 +1,7 @@
 'use strict'
 
-import { RequestType, Range, Command, NotificationType, TextDocumentIdentifier, ExecuteCommandParams, CodeActionParams, WorkspaceEdit } from 'vscode-languageserver-protocol'
+import { RequestType, NotificationType } from 'coc.nvim'
+import { Range, Command, TextDocumentIdentifier, ExecuteCommandParams, CodeActionParams, WorkspaceEdit } from 'vscode-languageserver-protocol'
 
 /**
  * The message type. Copied from vscode protocol

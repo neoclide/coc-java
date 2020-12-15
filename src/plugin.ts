@@ -1,6 +1,4 @@
-'use strict'
-
-import { extensions, workspace } from 'coc.nvim'
+import { extensions, window, workspace } from 'coc.nvim'
 import * as path from 'path'
 
 const exists: Set<string> = new Set()
@@ -37,7 +35,7 @@ export function onExtensionChange(): void {
     }
   }
   if (changed) {
-    workspace.showMessage(`Extensions to the Java Language Server changed, reloading coc.nvim required.`)
+    window.showMessage(`Extensions to the Java Language Server changed, reloading coc.nvim required.`)
     workspace.nvim.command(`CocRestart`, true)
   }
 }

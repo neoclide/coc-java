@@ -1,4 +1,4 @@
-import { commands, CompletionContext, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, MsgTypes, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, Uri, workspace } from 'coc.nvim'
+import { commands, CompletionItem, CompletionContext, CompletionList, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, MsgTypes, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, Uri, window, workspace } from 'coc.nvim'
 import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as glob from 'glob'
@@ -7,7 +7,7 @@ import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
 import rimraf from 'rimraf'
-import { CancellationToken, CompletionItem, CompletionItemKind, CompletionList, Emitter, ExecuteCommandParams, ExecuteCommandRequest, Location, Position, TextDocument, WorkspaceEdit } from 'vscode-languageserver-protocol'
+import { CancellationToken, CompletionItemKind, Emitter, ExecuteCommandParams, ExecuteCommandRequest, Location, Position, TextDocument, WorkspaceEdit } from 'vscode-languageserver-protocol'
 import * as buildpath from './buildpath'
 import { Commands } from './commands'
 import { downloadServer } from './downloader'
@@ -32,7 +32,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
   if (server_home) {
     let launchersFound: string[] = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', { cwd: server_home })
     if (launchersFound.length == 0) {
-      workspace.showMessage(`Launcher jar not found in jdt.ls.home: "${server_home}"`, 'error')
+      window.showMessage(`Launcher jar not found in jdt.ls.home: "${server_home}"`, 'error')
       return
     }
   }
@@ -41,7 +41,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
   try {
     requirements = await resolveRequirements()
   } catch (e) {
-    let res = await workspace.showQuickpick(['Yes', 'No'], `${e.message}, ${e.label}?`)
+    let res = await window.showQuickpick(['Yes', 'No'], `${e.message}, ${e.label}?`)
     if (res == 0) {
       commands.executeCommand(Commands.OPEN_BROWSER, e.openUrl).catch(_e => {
         // noop
@@ -91,22 +91,22 @@ async function start(server_home: string, requirements: RequirementsData, contex
     }
     let launchersFound: string[] = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', { cwd: server_home })
     if (launchersFound.length == 0) {
-      workspace.showMessage('jdt.ls not found, downloading...')
+      window.showMessage('jdt.ls not found, downloading...')
       try {
         await downloadServer(server_home)
       } catch (e) {
-        workspace.showMessage('Download jdt.ls failed, you can download it at https://download.eclipse.org/jdtls/snapshots/?d')
+        window.showMessage('Download jdt.ls failed, you can download it at https://download.eclipse.org/jdtls/snapshots/?d')
         rimraf.sync(`${server_home}/*`)
         return
       }
-      workspace.showMessage('jdt.ls downloaded')
+      window.showMessage('jdt.ls downloaded')
     }
   }
 
   let javaConfig = workspace.getConfiguration('java')
-  let statusItem = workspace.createStatusBarItem(0)
+  let statusItem = window.createStatusBarItem(0)
   statusItem.text = ''
-  let progressItem = workspace.createStatusBarItem(0, { progress: true })
+  let progressItem = window.createStatusBarItem(0, { progress: true })
   progressItem.text = 'jdt starting'
   progressItem.show()
 
@@ -193,7 +193,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
     if (!lsPort) {
       serverOptions = prepareExecutable(requirements, workspacePath, serverConfig)
     } else {
-      workspace.showMessage(`Lanuching jdt.ls from $JDTLS_CLIENT_PORT: ${port}`, 'warning')
+      window.showMessage(`Lanuching jdt.ls from $JDTLS_CLIENT_PORT: ${port}`, 'warning')
       serverOptions = () => {
         let socket = net.connect(lsPort)
         let result: StreamInfo = {
@@ -211,7 +211,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
       }
     }
   } else {
-    workspace.showMessage(`Lanuching client with $SERVER_PORT: ${port}`, 'warning')
+    window.showMessage(`Lanuching client with $SERVER_PORT: ${port}`, 'warning')
     // used during development
     serverOptions = awaitServerConnection.bind(null, port)
   }
@@ -235,7 +235,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
           progressItem.isProgress = false
           statusItem.hide()
           serverStatus = 'Error'
-          workspace.showMessage(`JDT Language Server error ${report.message}`, 'error')
+          window.showMessage(`JDT Language Server error ${report.message}`, 'error')
           break
         case 'Starting':
           if (!started) {
@@ -244,7 +244,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
           }
           break
         case 'Message':
-          workspace.showMessage(report.message)
+          window.showMessage(report.message)
           break
       }
     })
@@ -267,10 +267,10 @@ async function start(server_home: string, requirements: RequirementsData, contex
         } else if (notification.severity == MessageType.Warning) {
           msgType = 'warning'
         }
-        workspace.showMessage(notification.message, msgType)
+        window.showMessage(notification.message, msgType)
       }
       const titles = notification.commands.map(a => a.title)
-      workspace.showQuickpick(titles, notification.message).then(idx => {
+      window.showQuickpick(titles, notification.message).then(idx => {
         if (idx == -1) return
         let action = notification.commands[idx]
         let args: any[] = (action.arguments) ? action.arguments : []
@@ -324,17 +324,17 @@ async function start(server_home: string, requirements: RequirementsData, contex
 
     subscriptions.push(commands.registerCommand(Commands.COMPILE_WORKSPACE, async (isFullCompile: boolean) => {
       if (typeof isFullCompile !== 'boolean') {
-        const idx = await workspace.showQuickpick(['Incremental', 'Full'], 'please choose compile type:')
+        const idx = await window.showQuickpick(['Incremental', 'Full'], 'please choose compile type:')
         isFullCompile = idx != 0
       }
-      workspace.showMessage('Compiling workspace...')
+      window.showMessage('Compiling workspace...')
       const start = new Date().getTime()
       const res = await Promise.resolve(languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile))
       const elapsed = ((new Date().getTime() - start) / 1000).toFixed(1)
       if (res === CompileWorkspaceStatus.SUCCEED) {
-        workspace.showMessage(`Compile done, used ${elapsed}s.`)
+        window.showMessage(`Compile done, used ${elapsed}s.`)
       } else {
-        workspace.showMessage('Compile error!', 'error')
+        window.showMessage('Compile error!', 'error')
       }
     }))
     subscriptions.push(commands.registerCommand(Commands.UPDATE_SOURCE_ATTACHMENT, async (classFileUri: Uri): Promise<boolean> => {
@@ -343,7 +343,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
       }
       const resolveResult: SourceAttachmentResult = await commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.RESOLVE_SOURCE_ATTACHMENT, JSON.stringify(resolveRequest)) as SourceAttachmentResult
       if (resolveResult.errorMessage) {
-        workspace.showMessage(resolveResult.errorMessage, 'error')
+        window.showMessage(resolveResult.errorMessage, 'error')
         return false
       }
 
@@ -362,7 +362,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
         }
         const updateResult: SourceAttachmentResult = await commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.UPDATE_SOURCE_ATTACHMENT, JSON.stringify(updateRequest)) as SourceAttachmentResult
         if (updateResult.errorMessage) {
-          workspace.showMessage(updateResult.errorMessage, 'error')
+          window.showMessage(updateResult.errorMessage, 'error')
           return false
         }
 
@@ -398,7 +398,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
     try {
       deleteDirectory(workspacePath)
     } catch (error) {
-      workspace.showMessage('Failed to delete ' + workspacePath + ': ' + error, 'error')
+      window.showMessage('Failed to delete ' + workspacePath + ': ' + error, 'error')
     }
   }
 
@@ -430,7 +430,7 @@ async function projectConfigurationUpdate(languageClient: any, uri?: Uri): Promi
     resource = document.uri
   }
   if (!resource) {
-    workspace.showMessage('No Java project to update!', 'warning')
+    window.showMessage('No Java project to update!', 'warning')
     return
   }
   if (isJavaConfigFile(resource)) {
@@ -472,7 +472,7 @@ function makeRandomHexString(length): string {
 }
 
 async function cleanWorkspace(workspacePath): Promise<void> {
-  let res = await workspace.showPrompt('Are you sure you want to clean the Java language server workspace?')
+  let res = await window.showPrompt('Are you sure you want to clean the Java language server workspace?')
   if (res) {
     const file = path.join(workspacePath, cleanWorkspaceFileName)
     fs.closeSync(fs.openSync(file, 'w'))
@@ -497,7 +497,7 @@ function deleteDirectory(dir): void {
 async function openServerLogFile(workspacePath: string): Promise<boolean> {
   let serverLogFile = path.join(workspacePath, '.metadata', '.log')
   if (!fs.existsSync(serverLogFile)) {
-    workspace.showMessage('Java Language Server has not started logging.', 'warning')
+    window.showMessage('Java Language Server has not started logging.', 'warning')
     return
   }
   await workspace.openResource(Uri.file(serverLogFile).toString())
@@ -553,7 +553,7 @@ function getPath(f): string {
 
 async function openDocument(_extensionPath, formatterUrl, _defaultFormatter, _relativePath): Promise<void> {
   if (!formatterUrl || !fs.existsSync(formatterUrl)) {
-    workspace.showMessage('Could not open Formatter Settings file', 'error')
+    window.showMessage('Could not open Formatter Settings file', 'error')
     return
   }
   await workspace.openResource(Uri.file(formatterUrl).toString())
@@ -569,7 +569,7 @@ export async function applyWorkspaceEdit(edit: WorkspaceEdit): Promise<void> {
     try {
       await workspace.applyEdit(edit)
     } catch (e) {
-      workspace.showMessage(`applyEdit error: ${e.message}`, 'error')
+      window.showMessage(`applyEdit error: ${e.message}`, 'error')
       return
     }
   }
@@ -630,7 +630,7 @@ async function addFormatter(extensionPath, formatterUrl, defaultFormatter, relat
     if (!fs.existsSync(f)) {
       let name = relativePath !== null ? relativePath : f
       let msg = '\'' + name + '\' does not exist. Do you want to create it?'
-      let res = await workspace.showPrompt(msg)
+      let res = await window.showPrompt(msg)
       if (res) {
         fs.createReadStream(defaultFormatter)
           .pipe(fs.createWriteStream(f))

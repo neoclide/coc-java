@@ -1,5 +1,3 @@
-'use strict'
-
 import { workspace, Uri } from 'coc.nvim'
 import cp from 'child_process'
 import fs from 'fs'

@@ -1,10 +1,10 @@
+import { window, workspace } from 'coc.nvim'
+import compressing from 'compressing'
 import got from 'got'
 import tunnel from 'tunnel'
-import compressing from 'compressing'
-import { workspace } from 'coc.nvim'
 
 export async function downloadServer(root: string): Promise<void> {
-  let statusItem = workspace.createStatusBarItem(0, { progress: true })
+  let statusItem = window.createStatusBarItem(0, { progress: true })
   statusItem.text = 'Downloading jdt.ls from eclipse.org'
   statusItem.show()
   let config = workspace.getConfiguration('http')

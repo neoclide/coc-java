@@ -1,9 +1,9 @@
-import os from 'os'
-import * as path from 'path'
-import * as net from 'net'
-import * as glob from 'glob'
-import { StreamInfo, Executable } from 'coc.nvim'
-import { RequirementsData, ServerConfiguration } from './requirements'
+import { Executable, StreamInfo } from 'coc.nvim';
+import * as glob from 'glob';
+import * as net from 'net';
+import os from 'os';
+import * as path from 'path';
+import { RequirementsData, ServerConfiguration } from './requirements';
 
 declare var v8debug
 const DEBUG = (typeof v8debug === 'object') || startedInDebugMode()
