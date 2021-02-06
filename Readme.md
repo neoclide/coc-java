@@ -12,7 +12,7 @@ works with [coc.nvim](https://github.com/neoclide/coc.nvim).
 ```
 
 2. If you do not have a _Java_ Development Kit correctly [set](#setting-the-jdk)
-   - Download and install a recent Java Development Kit (latest Java 8 is the minimum requirement).
+   - Download and install a recent Java Development Kit (latest Java 11 is the minimum requirement).
 3. Extension is activated when you first access a Java file
    - Recognizes projects with _Maven_ or _Gradle_ build files in the directory hierarchy.
 
@@ -34,8 +34,8 @@ If you need to compile your projects against a different JDK version, it's recom
 ```json
 "java.configuration.runtimes": [
   {
-    "name": "JavaSE-1.8",
-    "path": "/path/to/jdk-8",
+    "name": "JavaSE-1.11",
+    "path": "/path/to/jdk-11",
   },
   {
     "name": "JavaSE-11",
@@ -48,6 +48,7 @@ If you need to compile your projects against a different JDK version, it's recom
   },
 ]
 ```
+
 The default runtime will be used when you open standalone Java files.
 
 # Features
@@ -118,7 +119,7 @@ The following settings are supported:
 - `java.completion.enabled` : Enable/disable code completion support.
 - `java.completion.overwrite` : When set to true, code completion overwrites the current text. When set to false, code is simply added instead.
 - `java.completion.guessMethodArguments` : When set to true, method arguments are guessed when a method is selected from as list of code assist proposals.
-- `java.completion.filteredTypes`: Defines the type filters. All types whose fully qualified name matches the selected filter strings will be ignored in content assist or quick fix proposals and when organizing imports. For example 'java.awt.*' will hide all types from the awt packages.
+- `java.completion.filteredTypes`: Defines the type filters. All types whose fully qualified name matches the selected filter strings will be ignored in content assist or quick fix proposals and when organizing imports. For example 'java.awt.\*' will hide all types from the awt packages.
 - `java.completion.favoriteStaticMembers` : Defines a list of static members or types with static members.
 - `java.completion.importOrder` : Defines the sorting order of import statements.
 - `java.completion.maxResults`: Maximum number of completion results (not including snippets). `0` (the default value) disables the limit, all results are returned. In case of performance problems, consider setting a sensible limit..
@@ -140,15 +141,15 @@ The following settings are supported:
 - `java.codeGeneration.toString.skipNullValues`: Skip null values when generating the toString method. Defaults to `false`.
 - `java.codeGeneration.toString.listArrayContents`: List contents of arrays instead of using native toString(). Defaults to `true`.
 - `java.codeGeneration.toString.limitElements`: Limit number of items in arrays/collections/maps to list, if 0 then list all. Defaults to `0`.
-- `java.saveActions.organizeImports` :  Enable/disable auto organize imports on save action.
+- `java.saveActions.organizeImports` : Enable/disable auto organize imports on save action.
 - `java.selectionRange.enabled`: Enable/disable Smart Selection support for Java. Disabling this option will not affect the coc-java built-in word-based and bracket-based smart selection.
 - `java.project.referencedLibraries`: Configure glob patterns for referencing local libraries to a Java project.
 - `java.references.includeAccessors`: Include getter, setter and builder/constructor when finding references. Default to true.
 - `java.sources.organizeImports.starThreshold`: Specifies the number of imports added before a star-import declaration is used, default is 99.
 - `java.sources.organizeImports.staticStarThreshold`: Specifies the number of static imports added before a star-import declaration is used, default is 99.
 - `java.project.resourceFilters`: Excludes files and folders from being refreshed by the Java Language Server, which can improve the overall performance. For example, ["node_modules",".git"] will exclude all files and folders named 'node_modules' or '.git'. Defaults to ["node_modules",".git"].
-- `java.templates.fileHeader`: Specifies the file header comment for new Java file. Supports configuring multi-line comments with an array of strings, and using ${variable} to reference the [predefined variables](https://github.com/redhat-developer/vscode-java/wiki/Predefined-Variables-for-Java-Template-Snippets).
-- `java.templates.typeComment`: Specifies the type comment for new Java type. Supports configuring multi-line comments with an array of strings, and using ${variable} to reference the [predefined variables](https://github.com/redhat-developer/vscode-java/wiki/Predefined-Variables-for-Java-Template-Snippets).
+- `java.templates.fileHeader`: Specifies the file header comment for new Java file. Supports configuring multi-line comments with an array of strings, and using \${variable} to reference the [predefined variables](https://github.com/redhat-developer/vscode-java/wiki/Predefined-Variables-for-Java-Template-Snippets).
+- `java.templates.typeComment`: Specifies the type comment for new Java type. Supports configuring multi-line comments with an array of strings, and using \${variable} to reference the [predefined variables](https://github.com/redhat-developer/vscode-java/wiki/Predefined-Variables-for-Java-Template-Snippets).
 
 # Troubleshooting
 
