@@ -25,6 +25,7 @@
     "onLanguage:java",
     "workspaceContains:pom.xml",
     "workspaceContains:build.gradle",
+    "workspaceContains:build.gradle.kts",
     "workspaceContains:.classpath"
   ],
   "contributes": {
@@ -35,6 +36,7 @@
           "package.json",
           ".project",
           ".classpath",
+          "build.gradle.kts",
           "build.gradle"
         ]
       }
