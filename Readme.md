@@ -18,6 +18,9 @@ works with [coc.nvim](https://github.com/neoclide/coc.nvim).
 
 **Note**: this extension would download latest [jdt.ls](https://github.com/eclipse/eclipse.jdt.ls) for you when not found.
 
+**Note**: You can manually download jdt.ls and extract the content to data
+folder of coc-java, get the folder path by `:echo coc#util#extension_root().'/coc-java-data/server'` in your vim.
+
 # Setting the JDK
 
 The path to the Java Development Kit is searched in the following order:
