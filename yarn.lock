@@ -1362,10 +1362,10 @@ find-cache-dir@^2.1.0:
     make-dir "^2.0.0"
     pkg-dir "^3.0.0"
 
-find-java-home@0.2.0:
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/find-java-home/-/find-java-home-0.2.0.tgz#5c500bbad3018832abb9886f7d0f03f57146cddc"
-  integrity sha512-nq5PFOHxE1VSEbdDVkLoA2bAcRnG4ETqJO8ipFq3glIWA52hdWCXYX3emuUyMAQfaqFU4Ea85gqcgaPmOApEPA==
+find-java-home@1.2.1:
+  version "1.2.1"
+  resolved "https://registry.yarnpkg.com/find-java-home/-/find-java-home-1.2.1.tgz#9e188b67e0f74230ac52bc2f9c8efd6aee2b8582"
+  integrity sha512-cY1eKSl9/eWOP7Mi+SM2CaNKUEAFnvXjCbtHIVImGbnpq6fCWGuvtAfsDNmp9ZyiTBeYqDu3VotBYQBhAIHFSg==
   dependencies:
     which "~1.0.5"
     winreg "~1.2.2"
