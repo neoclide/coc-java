@@ -1,4 +1,4 @@
-import { commands, CompletionItem, CompletionContext, CompletionList, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, MsgTypes, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, StreamInfo, TextDocumentContentProvider, Uri, window, workspace } from 'coc.nvim'
+import { commands, CompletionItem, CompletionContext, CompletionList, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, MsgTypes, ProvideCompletionItemsSignature, ProviderResult, RevealOutputChannelOn, services, ServiceStat, StreamInfo, TextDocumentContentProvider, Uri, window, workspace } from 'coc.nvim'
 import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as glob from 'glob'
@@ -222,6 +222,11 @@ async function start(server_home: string, requirements: RequirementsData, contex
   let started = false
   languageClient.onReady().then(() => {
     languageClient.onNotification(StatusNotification.type, report => {
+      // Because we start the language client in this extension, so we also
+      // need to synchronize the service state. Sometimes jdt.ls may notify
+      // `Starting` even after `Started`, so we only set service state on
+      // `Started`/`Error` to avoid being in a wrong final state.
+      const service = services.getService(languageClient.id)
       switch (report.type) {
         case 'Started':
           started = true
@@ -229,12 +234,14 @@ async function start(server_home: string, requirements: RequirementsData, contex
           statusItem.text = 'JDT.LS'
           statusItem.show()
           serverStatus = 'Started'
+          service.state = ServiceStat.Running
           languageClient.info('JDT Language Server started', { javaRequirement: requirements, apiVersion: '0.2' })
           break
         case 'Error':
           progressItem.isProgress = false
           statusItem.hide()
           serverStatus = 'Error'
+          service.state = ServiceStat.StartFailed
           window.showMessage(`JDT Language Server error ${report.message}`, 'error')
           break
         case 'Starting':
