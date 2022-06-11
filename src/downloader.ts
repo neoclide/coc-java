@@ -21,6 +21,9 @@ export async function downloadServer(root: string): Promise<void> {
     })
   }
 
+  // need to find the url of the latest **milestone** instead of the latest snapshot
+
+
   return new Promise<void>((resolve, reject) => {
     let stream = got.stream('http://download.eclipse.org/jdtls/snapshots/jdt-language-server-latest.tar.gz', options)
       .on('downloadProgress', progress => {
