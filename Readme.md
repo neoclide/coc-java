@@ -12,7 +12,7 @@ works with [coc.nvim](https://github.com/neoclide/coc.nvim).
 ```
 
 2. If you do not have a _Java_ Development Kit correctly [set](#setting-the-jdk)
-   - Download and install a recent Java Development Kit (latest Java 11 is the minimum requirement).
+   - Download and install a recent Java Development Kit (latest Java 17 is the minimum requirement).
 3. Extension is activated when you first access a Java file
    - Recognizes projects with _Maven_ or _Gradle_ build files in the directory hierarchy.
 
