@@ -7,7 +7,7 @@ import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
 import rimraf from 'rimraf'
-import { CancellationToken, CompletionItemKind, Emitter, ExecuteCommandParams, ExecuteCommandRequest, Location, Position, TextDocument, WorkspaceEdit } from 'vscode-languageserver-protocol'
+import { CancellationToken, CompletionItemKind, Emitter, ExecuteCommandParams, ExecuteCommandRequest, Location, Position, TextDocument, TextDocumentPositionParams, WorkspaceEdit } from 'vscode-languageserver-protocol'
 import * as buildpath from './buildpath'
 import { Commands } from './commands'
 import { downloadServer } from './downloader'
@@ -306,6 +306,31 @@ async function start(server_home: string, requirements: RequirementsData, contex
     subscriptions.push(commands.registerCommand(Commands.SHOW_JAVA_IMPLEMENTATIONS, (uri: string, position: Position, locations: Location[]) => {
       return commands.executeCommand(Commands.SHOW_REFERENCES, Uri.parse(uri), position, locations)
     }, null, true))
+
+    subscriptions.push(commands.registerCommand(Commands.NAVIGATE_TO_SUPER_IMPLEMENTATION_COMMAND, async () => {
+      const position = await window.getCursorPosition()
+      const doc = await workspace.document
+      const params: TextDocumentPositionParams = {
+        textDocument: {
+          uri: doc.uri
+        },
+        position
+      }
+      const resp: Location[] = await languageClient.sendRequest('java/findLinks', {
+        type: 'superImplementation',
+        position: params
+      });
+      if (resp && resp.length > 0) {
+        if (resp.length === 1) {
+          let { uri, range } = resp[0]
+          await workspace.jumpTo(uri, range.start);
+        } else {
+          await workspace.showLocations(resp);
+        }
+      } else {
+        window.showWarningMessage('No super implementation found');
+      }
+    }, null, false));
 
     subscriptions.push(commands.registerCommand(Commands.CONFIGURATION_UPDATE, uri => projectConfigurationUpdate(languageClient, uri), null, true))
 

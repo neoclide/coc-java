@@ -617,6 +617,11 @@
         "command": "java.clean.workspace",
         "title": "Clean the Java language server workspace",
         "category": "Java"
+      },
+      {
+        "command": "java.action.navigateToSuperImplementation",
+        "title": "Navigate To Super Method Command",
+        "category": "Java"
       }
     ]
   },

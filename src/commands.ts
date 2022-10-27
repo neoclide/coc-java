@@ -140,4 +140,9 @@ export namespace Commands {
    * Generate Delegate Methods.
    */
   export const GENERATE_DELEGATE_METHODS_PROMPT = 'java.action.generateDelegateMethodsPrompt'
+
+  /**
+   * Navigate To Super Method Command.
+   */
+  export const NAVIGATE_TO_SUPER_IMPLEMENTATION_COMMAND = 'java.action.navigateToSuperImplementation'
 }
