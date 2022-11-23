@@ -15,7 +15,7 @@ import { ExtensionAPI } from './extension.api'
 import { fixComment } from './fixes'
 import { awaitServerConnection, prepareExecutable } from './javaServerStarter'
 import { collectionJavaExtensions, onExtensionChange } from './plugin'
-import { ActionableNotification, ClassFileContentsRequest, CompileWorkspaceRequest, CompileWorkspaceStatus, ExecuteClientCommandRequest, FeatureStatus, MessageType, ProgressReportNotification, ProjectConfigurationUpdateRequest, SendNotificationRequest, SourceAttachmentAttribute, SourceAttachmentRequest, SourceAttachmentResult, StatusNotification } from './protocol'
+import { ActionableNotification, ClassFileContentsRequest, CompileWorkspaceRequest, CompileWorkspaceStatus, ExecuteClientCommandRequest, FeatureStatus, MessageType, ProgressReport, ProgressReportNotification, ProjectConfigurationUpdateRequest, SendNotificationRequest, SourceAttachmentAttribute, SourceAttachmentRequest, SourceAttachmentResult, StatusNotification } from './protocol'
 import { RequirementsData, resolveRequirements, ServerConfiguration } from './requirements'
 import * as sourceAction from './sourceAction'
 
@@ -255,9 +255,9 @@ async function start(server_home: string, requirements: RequirementsData, contex
           break
       }
     })
-    languageClient.onNotification(ProgressReportNotification.type, progress => {
+    languageClient.onNotification(ProgressReportNotification.type, (progress: ProgressReport) => {
       progressItem.show()
-      progressItem.text = progress.status
+      progressItem.text = progress.task + ": " + progress.status.replace(/%/g, "%%");
       if (progress.complete) {
         setTimeout(() => { progressItem.hide() }, 500)
       }
