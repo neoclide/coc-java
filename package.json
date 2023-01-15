@@ -263,6 +263,14 @@
           ],
           "scope": "window"
         },
+        "java.project.sourcePaths": {
+          "type": [
+            "array"
+          ],
+          "description": "Relative paths for including additional paths for source code within a Java project.",
+          "default": null,
+          "scope": "window"
+        },
         "java.project.referencedLibraries": {
           "type": [
             "array",
