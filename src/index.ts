@@ -257,7 +257,7 @@ async function start(server_home: string, requirements: RequirementsData, contex
     })
     languageClient.onNotification(ProgressReportNotification.type, (progress: ProgressReport) => {
       progressItem.show()
-      progressItem.text = progress.task + ": " + progress.status.replace(/%/g, "%%");
+      progressItem.text = progress.task + ": " + progress.status
       if (progress.complete) {
         setTimeout(() => { progressItem.hide() }, 500)
       }
@@ -319,18 +319,18 @@ async function start(server_home: string, requirements: RequirementsData, contex
       const resp: Location[] = await languageClient.sendRequest('java/findLinks', {
         type: 'superImplementation',
         position: params
-      });
+      })
       if (resp && resp.length > 0) {
         if (resp.length === 1) {
           let { uri, range } = resp[0]
-          await workspace.jumpTo(uri, range.start);
+          await workspace.jumpTo(uri, range.start)
         } else {
-          await workspace.showLocations(resp);
+          await workspace.showLocations(resp)
         }
       } else {
-        window.showWarningMessage('No super implementation found');
+        window.showWarningMessage('No super implementation found')
       }
-    }, null, false));
+    }, null, false))
 
     subscriptions.push(commands.registerCommand(Commands.CONFIGURATION_UPDATE, uri => projectConfigurationUpdate(languageClient, uri), null, true))
 
