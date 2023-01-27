@@ -1,10 +1,11 @@
-import { commands, ExtensionContext, LanguageClient, window, workspace } from 'coc.nvim'
-import { CodeActionParams, Range } from 'vscode-languageserver-protocol'
-import { Commands } from './commands'
-import { applyWorkspaceEdit } from './index'
-import { AccessorField, AddOverridableMethodsRequest, CheckConstructorsResponse, CheckConstructorStatusRequest, CheckDelegateMethodsStatusRequest, CheckHashCodeEqualsStatusRequest, CheckToStringStatusRequest, GenerateAccessorsRequest, GenerateConstructorsRequest, GenerateDelegateMethodsRequest, GenerateHashCodeEqualsRequest, GenerateToStringRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, OrganizeImportsRequest, ResolveUnimplementedAccessorsRequest, VariableBinding } from './protocol'
+'use strict'
 
-export function registerCommands(languageClient: LanguageClient, context: ExtensionContext): void {
+import { commands, Disposable, ExtensionContext, LanguageClient, Uri, window, workspace } from 'coc.nvim'
+import { CodeActionParams } from 'vscode-languageserver-protocol'
+import { Commands } from './commands'
+import { AccessorCodeActionParams, AccessorCodeActionRequest, AccessorKind, AddOverridableMethodsRequest, CheckConstructorStatusRequest, CheckDelegateMethodsStatusRequest, CheckHashCodeEqualsStatusRequest, CheckToStringStatusRequest, GenerateAccessorsRequest, GenerateConstructorsRequest, GenerateDelegateMethodsRequest, GenerateHashCodeEqualsRequest, GenerateToStringRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, OrganizeImportsRequest, VariableBinding } from './protocol'
+
+export function registerCommands(languageClient: LanguageClient, context: ExtensionContext) {
   registerOverrideMethodsCommand(languageClient, context)
   registerHashCodeEqualsCommand(languageClient, context)
   registerOrganizeImportsCommand(languageClient, context)
@@ -15,46 +16,11 @@ export function registerCommands(languageClient: LanguageClient, context: Extens
   registerGenerateDelegateMethodsCommand(languageClient, context)
 }
 
-async function multiselectItems<T>(items: T[], labelGenerator: (_: T) => string, text: string): Promise<T[]> {
-  if (items.length == 0 || items.length == 1) {
-    return items
-  }
-
-  let result = []
-  let itemsCopy = [...items]
-  let options = ["Select all", "Cancel", ...items.map(labelGenerator)]
-
-  while (itemsCopy.length > 0) {
-    let idx = await window.showQuickpick(options, text)
-
-    if (idx == -1) {
-      break
-    }
-
-    if (idx >= options.length) {
-      continue
-    }
-
-    switch (idx) {
-      case 0: return items
-      case 1: return undefined
-    }
-
-    let translatedIdx = idx - 2
-
-    result.push(itemsCopy[translatedIdx])
-    itemsCopy.splice(translatedIdx, 1)
-    options.splice(idx, 1)
-  }
-
-  return result
-}
-
-function registerOverrideMethodsCommand(languageClient: any, context: ExtensionContext): void {
+function registerOverrideMethodsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.OVERRIDE_METHODS_PROMPT, async (params: CodeActionParams) => {
-    const result = await Promise.resolve(languageClient.sendRequest(ListOverridableMethodsRequest.type, params))
+    const result = await languageClient.sendRequest(ListOverridableMethodsRequest.type, params)
     if (!result || !result.methods || !result.methods.length) {
-      window.showMessage('No overridable methods found in the super type.', 'warning')
+      window.showWarningMessage('No overridable methods found in the super type.')
       return
     }
 
@@ -72,108 +38,128 @@ function registerOverrideMethodsCommand(languageClient: any, context: ExtensionC
       return a.parameters.length - b.parameters.length
     })
 
-    const methods: Array<{ name: string; parameters: Array<any> }> = result.methods
+    const quickPickItems = result.methods.map(method => {
+      return {
+        label: `${method.name}(${method.parameters.join(',')})`,
+        description: `${method.declaringClassType}: ${method.declaringClass}`,
+        picked: method.unimplemented,
+        originalMethod: method,
+      }
+    })
 
-    const selection = await multiselectItems(methods,
-      m => `${m.name}(${m.parameters.join(',')})`,
-      `Select methods to override or implement in ${result.type}`)
-
-    if (selection === undefined) {
+    const selectedItems = await window.showQuickPick(quickPickItems, {
+      canPickMany: true,
+      placeholder: `Select methods to override or implement in ${result.type}`
+    })
+    if (!selectedItems || !selectedItems.length) {
       return
     }
 
-    const workspaceEdit = await Promise.resolve(languageClient.sendRequest(AddOverridableMethodsRequest.type, {
+    const workspaceEdit = await languageClient.sendRequest(AddOverridableMethodsRequest.type, {
       context: params,
-      overridableMethods: selection
-    }))
-    await applyWorkspaceEdit(workspaceEdit)
+      overridableMethods: selectedItems.map((item) => item.originalMethod),
+    })
+    await workspace.applyEdit(workspaceEdit)
+    // await revealWorkspaceEdit(workspaceEdit, languageClient)
   }, null, true))
 }
 
-function registerHashCodeEqualsCommand(languageClient: any, context: ExtensionContext): void {
+function registerHashCodeEqualsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.HASHCODE_EQUALS_PROMPT, async (params: CodeActionParams) => {
-    const result = await Promise.resolve(languageClient.sendRequest(CheckHashCodeEqualsStatusRequest.type, params))
+    const result = await languageClient.sendRequest(CheckHashCodeEqualsStatusRequest.type, params)
     if (!result || !result.fields || !result.fields.length) {
-      window.showMessage(`The operation is not applicable to the type ${result.type}.`, 'error')
+      window.showErrorMessage(`The operation is not applicable to the type ${result.type}.`)
       return
     }
 
     let regenerate = false
     if (result.existingMethods && result.existingMethods.length) {
-      const ans = await window.showPrompt(`Methods ${result.existingMethods.join(' and ')} already ${result.existingMethods.length === 1 ? 'exists' : 'exist'} in the Class '${result.type}'. `
-        + 'Do you want to regenerate the implementation?')
-      if (!ans) return
+      const ans = await window.showInformationMessage(`Methods ${result.existingMethods.join(' and ')} already ${result.existingMethods.length === 1 ? 'exists' : 'exist'} in the Class '${result.type}'. `
+        + 'Do you want to regenerate the implementation?', 'Regenerate', 'Cancel')
+      if (ans !== 'Regenerate') {
+        return
+      }
 
       regenerate = true
     }
-    let fields: Array<{ name: string, type: any }> = result.fields
 
-    const selection = await multiselectItems(fields, f => `${f.name}: ${f.type}`, 'Select the fields to include in the hashCode() and equals() methods.')
-
-    if (selection === undefined) {
+    const fieldItems = result.fields.map((field) => {
+      return {
+        label: `${field.name}: ${field.type}`,
+        picked: true,
+        originalField: field
+      }
+    })
+    const selectedFields = await window.showQuickPick(fieldItems, {
+      canPickMany: true,
+      placeholder: 'Select the fields to include in the hashCode() and equals() methods.'
+    })
+    if (!selectedFields || !selectedFields.length) {
       return
     }
 
-    const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateHashCodeEqualsRequest.type, {
+    const workspaceEdit = await languageClient.sendRequest(GenerateHashCodeEqualsRequest.type, {
       context: params,
-      fields: selection,
+      fields: selectedFields.map((item) => item.originalField),
       regenerate
-    }))
-    await applyWorkspaceEdit(workspaceEdit)
+    })
+    await workspace.applyEdit(workspaceEdit)
+    // await revealWorkspaceEdit(workspaceEdit, languageClient)
   }, null, true))
 }
 
-function registerOrganizeImportsCommand(languageClient: any, context: ExtensionContext): void {
-  context.subscriptions.push(commands.registerCommand(Commands.ORGANIZE_IMPORTS, async () => {
-    let doc = workspace.getDocument(workspace.bufnr)
-    let params: CodeActionParams = {
-      textDocument: {
-        uri: doc.uri
-      },
-      range: Range.create(0, 0, doc.lineCount, 0),
-      context: { diagnostics: [] },
-    }
-    const workspaceEdit = await Promise.resolve(languageClient.sendRequest(OrganizeImportsRequest.type, params))
-    await applyWorkspaceEdit(workspaceEdit)
+function registerOrganizeImportsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+  context.subscriptions.push(commands.registerCommand(Commands.ORGANIZE_IMPORTS, async (params: CodeActionParams) => {
+    const workspaceEdit = await languageClient.sendRequest(OrganizeImportsRequest.type, params)
+    await workspace.applyEdit(workspaceEdit)
   }, null, true))
 }
 
 function registerChooseImportCommand(context: ExtensionContext): void {
-  context.subscriptions.push(commands.registerCommand(Commands.CHOOSE_IMPORTS, async (_uri: string, selections: ImportSelection[]) => {
+  context.subscriptions.push(commands.registerCommand(Commands.CHOOSE_IMPORTS, async (uri: string, selections: ImportSelection[], restoreExistingImports?: boolean) => {
     const chosen: ImportCandidate[] = []
-
-    const config = workspace.getConfiguration('java')
-    const callback = config.get<string>('import.callback', null)
-
-    // tslint:disable-next-line: prefer-for-of
+    const fileUri: Uri = Uri.parse(uri)
     for (let i = 0; i < selections.length; i++) {
       const selection: ImportSelection = selections[i]
+      await workspace.jumpTo(fileUri, selection.range.start)
+      await window.selectRange(selection.range)
+      // Move the cursor to the code line with ambiguous import choices.
+      // await window.showTextDocument(fileUri, { preserveFocus: true, selection: selection.range, viewColumn: ViewColumn.One })
       const candidates: ImportCandidate[] = selection.candidates
+      const items = candidates.map((item) => {
+        return {
+          label: item.fullyQualifiedName,
+          origin: item
+        }
+      })
+
       const fullyQualifiedName = candidates[0].fullyQualifiedName
       const typeName = fullyQualifiedName.substring(fullyQualifiedName.lastIndexOf(".") + 1)
-
+      const disposables: Disposable[] = []
       try {
-        if (callback != null) {
-          let res = await workspace.nvim.call(callback, [candidates.map(o => o.fullyQualifiedName)])
-          if (res != -1) {
-            chosen.push(candidates[res])
-            break
-          }
-        }
-
-        // Move the cursor to the code line with ambiguous import choices.
-        await window.moveTo(selection.range.start)
-
-        let res = await window.showQuickpick(candidates.map(o => o.fullyQualifiedName), `Choose type '${typeName}' to import`)
-        if (res == -1) {
-          chosen.push(null)
-          continue
-        }
-        chosen.push(candidates[res])
+        const pick = await new Promise<any>((resolve, reject) => {
+          window.createQuickPick({
+            placeholder: `Choose type '${typeName}' to import`,
+            items,
+            title: restoreExistingImports ? "Add All Missing Imports" : "Organize Imports",
+            matchOnDescription: true,
+          }).then((input) => {
+            // input.step = i + 1
+            // input.totalSteps = selections.length
+            disposables.push(
+              input.onDidChangeSelection(items => resolve(items[0])),
+              input.onDidFinish(() => {
+                reject(undefined)
+              }),
+            )
+            input.show()
+          }, reject)
+        })
+        chosen.push(pick ? pick.origin : null)
       } catch (err) {
-        // tslint:disable:no-console
-        console.error(err)
         break
+      } finally {
+        disposables.forEach(d => d.dispose())
       }
     }
 
@@ -181,240 +167,234 @@ function registerChooseImportCommand(context: ExtensionContext): void {
   }, null, true))
 }
 
-function registerGenerateAccessorsCommand(languageClient: any, context: ExtensionContext): void {
-  context.subscriptions.push(commands.registerCommand(Commands.GENERATE_ACCESSORS_PROMPT, async (params: CodeActionParams) => {
-
-    const accessors: AccessorField[] =
-      await Promise.resolve(languageClient.sendRequest(ResolveUnimplementedAccessorsRequest.type, params))
-
-    if (!accessors || !accessors.length) {
-      return
-    }
-
-    let getterSetterOptions = determineGetterSetterOptions(accessors);
-
-    let generationResult = await multiselectItems(getterSetterOptions, s => s, 'Select what to generate')
-
-    if (generationResult === undefined) {
-      return
-    }
-
-    const shouldGenerateGetter = generationResult.includes('Getter')
-    const shouldGenerateSetter = generationResult.includes('Setter')
-
-    const accessorItems = prepareGetterSetterFieldOptions(accessors, shouldGenerateGetter, shouldGenerateSetter)
-
-    const text = generationResult
-      .map(str => str.toLowerCase() + 's')
-      .join(' and ')
-
-    let selection = await multiselectItems(accessorItems, o => o.label, `Select the fields to generate ${text}`)
-
-    if (selection === undefined) {
-      return
-    }
-
-    const selectedAccessors = selection.map(item => item.originalField)
-
-    const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateAccessorsRequest.type, {
-      context: params,
-      accessors: selectedAccessors,
-    }))
-    await applyWorkspaceEdit(workspaceEdit)
-  }, null, true))
-}
-
-function prepareGetterSetterFieldOptions(
-  accessors: AccessorField[],
-  shouldGenerateGetter: boolean,
-  shouldGenerateSetter: boolean
-): { label: string; originalField: AccessorField; }[] {
-
-  let result = accessors
-    .filter(({ generateGetter, generateSetter }) =>
-      (shouldGenerateGetter && generateGetter) ||
-      (shouldGenerateSetter && generateSetter))
-    .map(accessor => {
-      const generateGetter = shouldGenerateGetter && accessor.generateGetter
-      const generateSetter = shouldGenerateSetter && accessor.generateSetter
-
-      return {
-        label: accessor.fieldName,
-        originalField: {
-          ...accessor,
-          generateGetter: shouldGenerateGetter,
-          generateSetter: shouldGenerateSetter
-        },
-      }
-    })
-
-  return result
-}
-
-function determineGetterSetterOptions(accessors: AccessorField[]): string[] {
-  let getterSetterOptions = []
-
-  if (accessors.some(({ generateSetter }) => generateSetter)) {
-    getterSetterOptions.push('Setter')
-  }
-
-  if (accessors.some(({ generateGetter }) => generateGetter)) {
-    getterSetterOptions.push('Getter')
-  }
-
-  return getterSetterOptions
-}
-
-function registerGenerateToStringCommand(languageClient: any, context: ExtensionContext): void {
+function registerGenerateToStringCommand(languageClient: LanguageClient, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.GENERATE_TOSTRING_PROMPT, async (params: CodeActionParams) => {
-    const result = await Promise.resolve(languageClient.sendRequest(CheckToStringStatusRequest.type, params))
+    const result = await languageClient.sendRequest(CheckToStringStatusRequest.type, params)
     if (!result) {
       return
     }
 
     if (result.exists) {
-      const ans = await window.showPrompt(`Method 'toString()' already exists in the Class '${result.type}'. `
-        + 'Do you want to replace the implementation?')
-      if (!ans) {
+      const ans = await window.showInformationMessage(`Method 'toString()' already exists in the Class '${result.type}'. `
+        + 'Do you want to replace the implementation?', 'Replace', 'Cancel')
+      if (ans !== 'Replace') {
         return
       }
     }
 
     let fields: VariableBinding[] = []
     if (result.fields && result.fields.length) {
-      const fieldItems: Array<{ label: string; originalField: VariableBinding }> =
-        result.fields.map(field => {
-          return {
-            label: `${field.name}: ${field.type}`,
-            originalField: field
-          }
-        })
-
-      let selection = await multiselectItems(fieldItems, o => o.label, 'Select the fields to include in the toString() method.')
-
-      if (selection === undefined) {
+      const fieldItems = result.fields.map((field) => {
+        return {
+          label: `${field.name}: ${field.type}`,
+          picked: true,
+          originalField: field
+        }
+      })
+      const selectedFields = await window.showQuickPick(fieldItems, {
+        canPickMany: true,
+        placeholder: 'Select the fields to include in the toString() method.'
+      })
+      if (!selectedFields) {
         return
       }
 
-      fields = selection.map(i => i.originalField)
+      fields = selectedFields.map((item) => item.originalField)
     }
 
-    const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateToStringRequest.type, {
+    const workspaceEdit = await languageClient.sendRequest(GenerateToStringRequest.type, {
       context: params,
       fields,
-    }))
-    await applyWorkspaceEdit(workspaceEdit)
+    })
+    await workspace.applyEdit(workspaceEdit)
+    // await revealWorkspaceEdit(workspaceEdit, languageClient)
   }, null, true))
 }
 
+function registerGenerateAccessorsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+  context.subscriptions.push(commands.registerCommand(Commands.GENERATE_ACCESSORS_PROMPT, async (params: AccessorCodeActionParams) => {
+    await generateAccessors(languageClient, params)
+  }, null, true))
+}
+
+async function generateAccessors(languageClient: LanguageClient, params: AccessorCodeActionParams): Promise<void> {
+  const accessors = await languageClient.sendRequest(AccessorCodeActionRequest.type, params)
+  if (!accessors || !accessors.length) {
+    return
+  }
+
+  const accessorItems = accessors.map((accessor) => {
+    const description = []
+    if (accessor.generateGetter) {
+      description.push('getter')
+    }
+    if (accessor.generateSetter) {
+      description.push('setter')
+    }
+    return {
+      label: `${accessor.fieldName}: ${accessor.typeName}`,
+      description: (accessor.isStatic ? 'static ' : '') + description.join(', '),
+      originalField: accessor,
+    }
+  })
+  let accessorsKind: string
+  switch (params.kind) {
+    case AccessorKind.both:
+      accessorsKind = "getters and setters"
+      break
+    case AccessorKind.getter:
+      accessorsKind = "getters"
+      break
+    case AccessorKind.setter:
+      accessorsKind = "setters"
+      break
+    default:
+      return
+  }
+  const selectedAccessors = await window.showQuickPick(accessorItems, {
+    canPickMany: true,
+    placeholder: `Select the fields to generate ${accessorsKind}`
+  })
+  if (!selectedAccessors || !selectedAccessors.length) {
+    return
+  }
+
+  const workspaceEdit = await languageClient.sendRequest(GenerateAccessorsRequest.type, {
+    context: params,
+    accessors: selectedAccessors.map((item) => item.originalField),
+  })
+  await workspace.applyEdit(workspaceEdit)
+  // await revealWorkspaceEdit(workspaceEdit, languageClient)
+}
 
 function registerGenerateConstructorsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.GENERATE_CONSTRUCTORS_PROMPT, async (params: CodeActionParams) => {
-    const status = await Promise.resolve(languageClient.sendRequest(CheckConstructorStatusRequest.type as any, params)) as CheckConstructorsResponse
+    const status = await languageClient.sendRequest(CheckConstructorStatusRequest.type, params)
     if (!status || !status.constructors || !status.constructors.length) {
       return
     }
 
     let selectedConstructors = status.constructors
     let selectedFields = []
-
     if (status.constructors.length > 1) {
-      const constructorItems = status.constructors.map(constructor => {
+      const constructorItems = status.constructors.map((constructor) => {
         return {
           label: `${constructor.name}(${constructor.parameters.join(',')})`,
           originalConstructor: constructor,
         }
       })
-
-      let selectionResult = await multiselectItems(constructorItems, o => o.label, 'Select super class constructor(s).')
-
-      if (selectionResult === undefined) {
-        return;
+      const selectedConstructorItems = await window.showQuickPick(constructorItems, {
+        canPickMany: true,
+        placeholder: 'Select super class constructor(s).',
+      })
+      if (!selectedConstructorItems || !selectedConstructorItems.length) {
+        return
       }
 
-      selectedConstructors = selectionResult.map(i => i.originalConstructor)
+      selectedConstructors = selectedConstructorItems.map(item => item.originalConstructor)
     }
 
     if (status.fields.length) {
-      const fieldItems = status.fields.map(field => {
+      const fieldItems = status.fields.map((field) => {
         return {
           label: `${field.name}: ${field.type}`,
           originalField: field,
+          picked: field.isSelected
         }
       })
-
-      let selectionResult = await multiselectItems(fieldItems, o => o.label, 'Select fields to initialize by constructor(s).')
-
-      if (selectionResult === undefined) {
-        return;
+      const selectedFieldItems = await window.showQuickPick(fieldItems, {
+        canPickMany: true,
+        placeholder: 'Select fields to initialize by constructor(s).',
+      })
+      if (!selectedFieldItems) {
+        return
       }
 
-      selectedFields = selectionResult.map(i => i.originalField)
+      selectedFields = selectedFieldItems.map(item => item.originalField)
     }
 
-    const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateConstructorsRequest.type as any, {
+    const workspaceEdit = await languageClient.sendRequest(GenerateConstructorsRequest.type, {
       context: params,
       constructors: selectedConstructors,
       fields: selectedFields,
-    })) as any
-    await applyWorkspaceEdit(workspaceEdit)
+    })
+    await workspace.applyEdit(workspaceEdit)
   }, null, true))
 }
 
 function registerGenerateDelegateMethodsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.GENERATE_DELEGATE_METHODS_PROMPT, async (params: CodeActionParams) => {
-    const status = await Promise.resolve(languageClient.sendRequest(CheckDelegateMethodsStatusRequest.type as any, params)) as any
+    const status = await languageClient.sendRequest(CheckDelegateMethodsStatusRequest.type, params)
     if (!status || !status.delegateFields || !status.delegateFields.length) {
-      window.showMessage("All delegatable methods are already implemented.", 'warning')
+      window.showWarningMessage("All delegatable methods are already implemented.")
       return
     }
 
     let selectedDelegateField = status.delegateFields[0]
     if (status.delegateFields.length > 1) {
-      const fieldItems = status.delegateFields.map(delegateField => {
+      const fieldItems = status.delegateFields.map((delegateField) => {
         return {
           label: `${delegateField.field.name}: ${delegateField.field.type}`,
           originalField: delegateField,
         }
       })
-      let idx = await window.showQuickpick(fieldItems.map(o => o.label), 'Select target to generate delegates for.')
-      if (idx == -1) {
+      const selectedFieldItem = await window.showQuickPick(fieldItems, {
+        placeholder: 'Select target to generate delegates for.',
+      })
+      if (!selectedFieldItem) {
         return
       }
 
-      selectedDelegateField = fieldItems[idx].originalField
+      selectedDelegateField = selectedFieldItem.originalField
     }
 
-    let delegateEntryItems: Array<{ label: string; originalField: any; originalMethod: any }> =
-      selectedDelegateField.delegateMethods.map(delegateMethod => {
-        return {
-          label: `${selectedDelegateField.field.name}.${delegateMethod.name}(${delegateMethod.parameters.join(',')})`,
-          originalField: selectedDelegateField.field,
-          originalMethod: delegateMethod,
-        }
-      })
+    const delegateEntryItems = selectedDelegateField.delegateMethods.map(delegateMethod => {
+      return {
+        label: `${selectedDelegateField.field.name}.${delegateMethod.name}(${delegateMethod.parameters.join(',')})`,
+        originalField: selectedDelegateField.field,
+        originalMethod: delegateMethod,
+      }
+    })
 
     if (!delegateEntryItems.length) {
-      window.showMessage("All delegatable methods are already implemented.", 'warning')
+      window.showWarningMessage("All delegatable methods are already implemented.")
       return
     }
 
-    let selection = await multiselectItems(delegateEntryItems, o => o.label, 'Select methods to generate delegates for.')
-
-    if (selection === undefined) {
+    const selectedDelegateEntryItems = await window.showQuickPick(delegateEntryItems, {
+      canPickMany: true,
+      placeholder: 'Select methods to generate delegates for.',
+    })
+    if (!selectedDelegateEntryItems || !selectedDelegateEntryItems.length) {
       return
     }
 
-    const delegateEntries = selection.map(item => {
+    const delegateEntries = selectedDelegateEntryItems.map(item => {
       return {
         field: item.originalField,
         delegateMethod: item.originalMethod,
       }
     })
-    const workspaceEdit = await Promise.resolve(languageClient.sendRequest(GenerateDelegateMethodsRequest.type as any, {
+    const workspaceEdit = await languageClient.sendRequest(GenerateDelegateMethodsRequest.type, {
       context: params,
       delegateEntries,
-    }))
-    await applyWorkspaceEdit(workspaceEdit)
+    })
+    await workspace.applyEdit(workspaceEdit)
+    // await revealWorkspaceEdit(workspaceEdit, languageClient)
   }, null, true))
 }
+
+// async function revealWorkspaceEdit(workspaceEdit: WorkspaceEdit, languageClient: LanguageClient): Promise<void> {
+//   const codeWorkspaceEdit = languageClient.protocol2CodeConverter.asWorkspaceEdit(workspaceEdit)
+//   if (!codeWorkspaceEdit) {
+//     return
+//   }
+//   for (const entry of codeWorkspaceEdit.entries()) {
+//     await workspace.openTextDocument(entry[0])
+//     if (entry[1].length > 0) {
+//       // reveal first available change of the workspace edit
+//       window.activeTextEditor.revealRange(entry[1][0].range, TextEditorRevealType.InCenter)
+//       break
+//     }
+//   }
+// }

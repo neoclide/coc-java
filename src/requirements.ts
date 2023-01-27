@@ -1,33 +1,30 @@
-import { workspace, Uri } from 'coc.nvim'
-import cp from 'child_process'
-import fs from 'fs'
-import path from 'path'
-import pathExists from 'path-exists'
+'use strict'
+
+import { ExtensionContext, Uri, window, workspace } from 'coc.nvim'
 import expandHomeDir from 'expand-home-dir'
-import findJavaHome from 'find-java-home'
+import * as fse from 'fs-extra'
+import { findRuntimes, getRuntime, getSources, IJavaRuntime, JAVAC_FILENAME, JAVA_FILENAME } from 'jdk-utils'
+import * as path from 'path'
+import { Commands } from './commands'
+import { createLogger } from './log'
+import { checkJavaPreferences } from './settings'
 
-const isWindows = process.platform.indexOf('win') === 0
-const JAVAC_FILENAME = 'javac' + (isWindows ? '.exe' : '')
-const JAVA_FILENAME = 'java' + (isWindows ? '.exe' : '')
-
-export interface ServerConfiguration {
-  root: string
-  encoding: string
-  vmargs: string
-}
-
+const REQUIRED_JDK_VERSION = 17
+/* eslint-disable @typescript-eslint/naming-convention */
 export interface RequirementsData {
+  tooling_jre: string
+  tooling_jre_version: number
   java_home: string
   java_version: number
 }
+/* eslint-enable @typescript-eslint/naming-convention */
 
-export interface ErrorData {
+interface ErrorData {
   message: string
   label: string
-  openUrl: Uri
-  replaceClose: boolean
+  command: string
+  commandParam: any
 }
-
 /**
  * Resolves the requirements needed to run the extension.
  * Returns a promise that will resolve to a RequirementsData if
@@ -35,102 +32,208 @@ export interface ErrorData {
  * if any of the requirements fails to resolve.
  *
  */
-export async function resolveRequirements(): Promise<RequirementsData> {
-  let java_home = await checkJavaRuntime()
-  let javaVersion = await checkJavaVersion(java_home)
-  return Promise.resolve({ java_home, java_version: javaVersion })
-}
-
-function checkJavaRuntime(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let source: string
-    let javaHome: string = readJavaConfig()
+export async function resolveRequirements(context: ExtensionContext): Promise<RequirementsData> {
+  let toolingJre: string = await findEmbeddedJRE(context)
+  let toolingJreVersion: number = await getMajorVersion(toolingJre)
+  return new Promise(async (resolve, reject) => {
+    const javaPreferences = await checkJavaPreferences(context)
+    const preferenceName = javaPreferences.preference
+    let javaHome = javaPreferences.javaHome
+    let javaVersion: number = 0
     if (javaHome) {
-      source = 'The java.home variable defined in VS Code settings'
-    } else {
-      javaHome = process.env['JDK_HOME']
-      if (javaHome) {
-        source = 'The JDK_HOME environment variable'
-      } else {
-        javaHome = process.env['JAVA_HOME']
-        source = 'The JAVA_HOME environment variable'
-      }
-    }
-    if (javaHome) {
+      const source = `${preferenceName} variable defined in coc-settings.json`
       javaHome = expandHomeDir(javaHome)
-      let stat = fs.lstatSync(javaHome)
-      if (stat.isSymbolicLink()) {
-        javaHome = fs.realpathSync(javaHome)
+      if (!await fse.pathExists(javaHome)) {
+        invalidJavaHome(reject, `The ${source} points to a missing or inaccessible folder (${javaHome})`)
+      } else if (!await fse.pathExists(path.resolve(javaHome, 'bin', JAVAC_FILENAME))) {
+        let msg: string
+        if (await fse.pathExists(path.resolve(javaHome, JAVAC_FILENAME))) {
+          msg = `'bin' should be removed from the ${source} (${javaHome})`
+        } else {
+          msg = `The ${source} (${javaHome}) does not point to a JDK.`
+        }
+        invalidJavaHome(reject, msg)
       }
-      if (!pathExists.sync(javaHome)) {
-        openJDKDownload(reject, source + ' points to a missing folder')
+      javaVersion = await getMajorVersion(javaHome)
+      if (preferenceName === "java.jdt.ls.java.home" || !toolingJre) {
+        if (javaVersion >= REQUIRED_JDK_VERSION) {
+          toolingJre = javaHome
+          toolingJreVersion = javaVersion
+        } else {
+          const neverShow: boolean | undefined = context.workspaceState.get<boolean>("java.home.failsMinRequiredFirstTime")
+          if (!neverShow) {
+            context.workspaceState.update("java.home.failsMinRequiredFirstTime", true)
+            window.showInformationMessage(`The Java runtime set by 'java.jdt.ls.java.home' does not meet the minimum required version of '${REQUIRED_JDK_VERSION}' and will not be used.`)
+          }
+        }
       }
-      if (!pathExists.sync(path.resolve(javaHome, 'bin', JAVAC_FILENAME))) {
-        openJDKDownload(reject, source + ' does not point to a JDK.')
-      }
-      return resolve(javaHome)
     }
-    // No settings, let's try to detect as last resort.
-    findJavaHome((err, home) => {
-      if (err) {
-        openJDKDownload(reject, 'Java runtime could not be located')
-      }
-      else {
-        resolve(home)
-      }
-    })
-  })
-}
 
-function readJavaConfig(): string {
-  const config = workspace.getConfiguration('java')
-  return config.get<string>('home', null)
-}
-
-function checkJavaVersion(java_home: string): Promise<number> {
-  return new Promise((resolve, reject) => {
-    cp.execFile(java_home + '/bin/' + JAVA_FILENAME, ['-version'], {}, (_error, _stdout, stderr) => {
-      let javaVersion = parseMajorVersion(stderr)
-      if (javaVersion < 8) {
-        openJDKDownload(reject, 'Java 8 or more recent is required to run. Please download and install a recent JDK')
+    // search valid JDKs from env.JAVA_HOME, env.PATH, SDKMAN, jEnv, jabba, Common directories
+    const javaRuntimes = await findRuntimes({ checkJavac: true, withVersion: true, withTags: true })
+    if (!toolingJre) { // universal version
+      // as latest version as possible.
+      sortJdksByVersion(javaRuntimes)
+      const validJdks = javaRuntimes.filter(r => r.version.major >= REQUIRED_JDK_VERSION)
+      if (validJdks.length > 0) {
+        sortJdksBySource(validJdks)
+        javaHome = validJdks[0].homedir
+        javaVersion = validJdks[0].version.major
+        toolingJre = javaHome
+        toolingJreVersion = javaVersion
+      }
+    } else { // pick a default project JDK/JRE
+      /**
+       * For legacy users, we implicitly following the order below to
+       * set a default project JDK during initialization:
+       * java.jdt.ls.java.home > java.home > env.JDK_HOME > env.JAVA_HOME > env.PATH
+       *
+       * We'll keep it for compatibility.
+       */
+      if (javaHome) {
+        createLogger().info(`Use the JDK from '${preferenceName}' setting as the initial default project JDK.`)
+      } else if (javaRuntimes.length) {
+        sortJdksBySource(javaRuntimes)
+        javaHome = javaRuntimes[0].homedir
+        javaVersion = javaRuntimes[0].version?.major
+        createLogger().info(`Use the JDK from '${getSources(javaRuntimes[0])}' as the initial default project JDK.`)
+      } else if (javaHome = await findDefaultRuntimeFromSettings()) {
+        javaVersion = await getMajorVersion(javaHome)
+        createLogger().info("Use the JDK from 'java.configuration.runtimes' as the initial default project JDK.")
       } else {
-        resolve(javaVersion)
+        openJDKDownload(reject, "Please download and install a JDK to compile your project. You can configure your projects with different JDKs by the setting ['java.configuration.runtimes'](https://github.com/redhat-developer/vscode-java/wiki/JDK-Requirements#java.configuration.runtimes)")
       }
+    }
+
+    if (!toolingJre || toolingJreVersion < REQUIRED_JDK_VERSION) {
+      openJDKDownload(reject, `Java ${REQUIRED_JDK_VERSION} or more recent is required to run the Java extension. Please download and install a recent JDK. You can still compile your projects with older JDKs by configuring ['java.configuration.runtimes'](https://github.com/redhat-developer/vscode-java/wiki/JDK-Requirements#java.configuration.runtimes)`)
+    }
+
+    /* eslint-disable @typescript-eslint/naming-convention */
+    resolve({
+      tooling_jre: toolingJre,
+      tooling_jre_version: toolingJreVersion,
+      java_home: javaHome,
+      java_version: javaVersion,
     })
+    /* eslint-enable @typescript-eslint/naming-convention */
   })
 }
 
-export function parseMajorVersion(content: string): number {
-  let regexp = /version "(.*)"/g
-  let match = regexp.exec(content)
-  if (!match) {
+async function findEmbeddedJRE(context: ExtensionContext): Promise<string | undefined> {
+  const jreHome = context.asAbsolutePath("jre")
+  if (fse.existsSync(jreHome) && fse.statSync(jreHome).isDirectory()) {
+    const candidates = fse.readdirSync(jreHome)
+    for (const candidate of candidates) {
+      if (fse.existsSync(path.join(jreHome, candidate, "bin", JAVA_FILENAME))) {
+        return path.join(jreHome, candidate)
+      }
+    }
+  }
+
+  return
+}
+
+async function findDefaultRuntimeFromSettings(): Promise<string | undefined> {
+  const runtimes = workspace.getConfiguration().get("java.configuration.runtimes")
+  if (Array.isArray(runtimes) && runtimes.length) {
+    let candidate: string
+    for (const runtime of runtimes) {
+      if (!runtime || typeof runtime !== 'object' || !runtime.path) {
+        continue
+      }
+
+      const jr = await getRuntime(runtime.path)
+      if (jr) {
+        candidate = jr.homedir
+      }
+
+      if (runtime.default) {
+        break
+      }
+    }
+
+    return candidate
+  }
+
+  return undefined
+}
+
+export function sortJdksBySource(jdks: IJavaRuntime[]) {
+  const rankedJdks = jdks as Array<IJavaRuntime & { rank: number }>
+  const sources = ["JDK_HOME", "JAVA_HOME", "PATH"]
+  for (const [index, source] of sources.entries()) {
+    for (const jdk of rankedJdks) {
+      if (jdk.rank === undefined && getSources(jdk).includes(source)) {
+        jdk.rank = index
+      }
+    }
+  }
+  rankedJdks.filter(jdk => jdk.rank === undefined).forEach(jdk => jdk.rank = sources.length)
+  rankedJdks.sort((a, b) => a.rank - b.rank)
+}
+
+/**
+ * Sort by major version in descend order.
+ */
+export function sortJdksByVersion(jdks: IJavaRuntime[]) {
+  jdks.sort((a, b) => (b.version?.major ?? 0) - (a.version?.major ?? 0))
+}
+
+export function parseMajorVersion(version: string): number {
+  if (!version) {
     return 0
   }
-  let version = match[1]
   // Ignore '1.' prefix for legacy Java versions
   if (version.startsWith('1.')) {
     version = version.substring(2)
   }
-
   // look into the interesting bits now
-  regexp = /\d+/g
-  match = regexp.exec(version)
+  const regexp = /\d+/g
+  const match = regexp.exec(version)
   let javaVersion = 0
   if (match) {
-    javaVersion = parseInt(match[0], 10)
+    javaVersion = parseInt(match[0])
   }
   return javaVersion
 }
 
-function openJDKDownload(reject, cause): void {
-  let jdkUrl = 'https://developers.redhat.com/products/openjdk/download/?sc_cid=701f2000000RWTnAAO'
-  if (process.platform === 'darwin') {
-    jdkUrl = 'http://www.oracle.com/technetwork/java/javase/downloads/index.html'
-  }
+function openJDKDownload(reject, cause) {
+  const jdkUrl = getJdkUrl()
   reject({
     message: cause,
     label: 'Get the Java Development Kit',
-    openUrl: Uri.parse(jdkUrl),
-    replaceClose: false
-  } as ErrorData)
+    command: Commands.OPEN_BROWSER,
+    commandParam: Uri.parse(jdkUrl),
+  })
+}
+
+export function getJdkUrl() {
+  let jdkUrl = 'https://developers.redhat.com/products/openjdk/download/?sc_cid=701f2000000RWTnAAO'
+  if (process.platform === 'darwin') {
+    jdkUrl = 'https://adoptopenjdk.net/'
+  }
+  return jdkUrl
+}
+
+function invalidJavaHome(reject, cause: string) {
+  if (cause.indexOf("java.home") > -1) {
+    reject({
+      message: cause,
+      label: 'Open settings',
+      command: Commands.OPEN_JSON_SETTINGS
+    })
+  } else {
+    reject({
+      message: cause,
+    })
+  }
+}
+
+async function getMajorVersion(javaHome: string): Promise<number> {
+  if (!javaHome) {
+    return 0
+  }
+  const runtime = await getRuntime(javaHome, { withVersion: true })
+  return runtime?.version?.major || 0
 }

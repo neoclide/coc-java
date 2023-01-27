@@ -1,62 +1,82 @@
-import { Executable, StreamInfo } from 'coc.nvim';
-import * as glob from 'glob';
-import * as net from 'net';
-import os from 'os';
-import * as path from 'path';
-import { RequirementsData, ServerConfiguration } from './requirements';
+'use strict'
+
+import { Executable, ExecutableOptions, ExtensionContext, StreamInfo, workspace } from 'coc.nvim'
+import * as fs from 'fs'
+import * as glob from 'glob'
+import * as net from 'net'
+import * as os from 'os'
+import * as path from 'path'
+import { createLogger } from './log'
+import { addLombokParam, isLombokSupportEnabled } from './lombokSupport'
+import { RequirementsData } from './requirements'
+import { getJavaagentFlag, getJavaEncoding, getKey, isInWorkspaceFolder, IS_WORKSPACE_VMARGS_ALLOWED } from './settings'
+import { deleteDirectory, ensureExists, getJavaConfiguration, getTimestamp } from './utils'
 
 declare var v8debug
 const DEBUG = (typeof v8debug === 'object') || startedInDebugMode()
 
-const isWindows = process.platform.indexOf('win') === 0
-const JAVA_FILENAME = 'java' + (isWindows ? '.exe' : '')
+/**
+ * Argument that tells the program where to generate the heap dump that is created when an OutOfMemoryError is raised and `HEAP_DUMP` has been passed
+ */
+export const HEAP_DUMP_LOCATION = '-XX:HeapDumpPath='
 
-export function prepareExecutable(requirements: RequirementsData, workspacePath, config: ServerConfiguration): Executable {
-  let executable: Executable = Object.create(null)
-  let options = Object.create(null)
-  options.env = process.env
-  options.stdio = 'pipe'
+/**
+ * Argument that tells the program to generate a heap dump file when an OutOfMemoryError is raised
+ */
+export const HEAP_DUMP = '-XX:+HeapDumpOnOutOfMemoryError'
+
+export function prepareExecutable(requirements: RequirementsData, workspacePath, javaConfig, context: ExtensionContext, isSyntaxServer: boolean): Executable {
+  const executable: Executable = Object.create(null)
+  const options: ExecutableOptions = Object.create(null)
+  options.env = Object.assign({ syntaxserver: isSyntaxServer }, process.env)
+  if (os.platform() === 'win32') {
+    const vmargs = getJavaConfiguration().get('jdt.ls.vmargs', '')
+    const watchParentProcess = '-DwatchParentProcess=false'
+    if (vmargs.indexOf(watchParentProcess) < 0) {
+      options.detached = true
+    }
+  }
   executable.options = options
-  executable.command = path.resolve(requirements.java_home, 'bin', JAVA_FILENAME)
-  executable.args = prepareParams(requirements, config, workspacePath)
-  // tslint:disable-next-line: no-console
-  console.log('Starting Java server with: ' + executable.command + ' ' + executable.args.join(' '))
+  executable.command = path.resolve(`${requirements.tooling_jre}/bin/java`)
+  executable.args = prepareParams(requirements, javaConfig, workspacePath, context, isSyntaxServer)
+  createLogger().info(`Starting Java server with: ${executable.command} ${executable.args.join(' ')}`)
   return executable
 }
-
 export function awaitServerConnection(port): Thenable<StreamInfo> {
-  let addr = parseInt(port, 10)
+  const addr = parseInt(port)
   return new Promise((res, rej) => {
-    let server = net.createServer(stream => {
+    const server = net.createServer(stream => {
       server.close()
-      // tslint:disable-next-line: no-console
-      console.log('JDT LS connection established on port ' + addr)
+      createLogger().info(`JDT LS connection established on port ${addr}`)
       res({ reader: stream, writer: stream })
     })
     server.on('error', rej)
     server.listen(addr, () => {
       server.removeListener('error', rej)
-      // tslint:disable-next-line: no-console
-      console.log('Awaiting JDT LS connection on port ' + addr)
+      createLogger().info(`Awaiting JDT LS connection on port ${addr}`)
     })
     return server
   })
 }
 
-function prepareParams(requirements: RequirementsData, config: ServerConfiguration, workspacePath: string): string[] {
-  let params: string[] = []
+function prepareParams(requirements: RequirementsData, javaConfiguration, workspacePath, context: ExtensionContext, isSyntaxServer: boolean): string[] {
+  const params: string[] = []
   if (DEBUG) {
-    params.push('-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=localhost:1044,quiet=y')
+    const port = isSyntaxServer ? 1045 : 1044
+    params.push(`-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${port},quiet=y`)
     // suspend=y is the default. Use this form if you need to debug the server startup code:
-    //  params.push('-agentlib:jdwp=transport=dt_socket,server=y,address=localhost:1044')
+    //  params.push('-agentlib:jdwp=transport=dt_socket,server=y,address=1044');
   }
-  if (requirements.java_version > 8) {
-    params.push('--add-modules=ALL-SYSTEM',
-      '--add-opens',
-      'java.base/java.util=ALL-UNNAMED',
-      '--add-opens',
-      'java.base/java.lang=ALL-UNNAMED')
-  }
+
+  params.push('--add-modules=ALL-SYSTEM',
+    '--add-opens',
+    'java.base/java.util=ALL-UNNAMED',
+    '--add-opens',
+    'java.base/java.lang=ALL-UNNAMED',
+    // See https://github.com/redhat-developer/vscode-java/issues/2264
+    // It requires the internal API sun.nio.fs.WindowsFileAttributes.isDirectoryLink() to check if a Windows directory is symlink.
+    '--add-opens',
+    'java.base/sun.nio.fs=ALL-UNNAMED')
 
   params.push('-Declipse.application=org.eclipse.jdt.ls.core.id1',
     '-Dosgi.bundles.defaultStartLevel=4',
@@ -64,59 +84,208 @@ function prepareParams(requirements: RequirementsData, config: ServerConfigurati
   if (DEBUG) {
     params.push('-Dlog.level=ALL')
   }
-  let { vmargs, root } = config
-  const encodingKey = '-Dfile.encoding='
-  if (vmargs.indexOf(encodingKey) < 0 && config.encoding) {
-    params.push(encodingKey + config.encoding)
+  const metadataLocation = workspace.getConfiguration().get('java.import.generatesMetadataFilesAtProjectRoot')
+  if (metadataLocation !== undefined) {
+    params.push(`-Djava.import.generatesMetadataFilesAtProjectRoot=${metadataLocation}`)
   }
-  if (os.platform() == 'win32') {
-    const watchParentProcess = '-DwatchParentProcess='
-    if (vmargs.indexOf(watchParentProcess) < 0) {
-      params.push(watchParentProcess + 'false')
+  let vmargsCheck = workspace.getConfiguration().inspect('java.jdt.ls.vmargs').workspaceValue
+  if (vmargsCheck !== undefined) {
+    const isWorkspaceTrusted = true
+    const agentFlag = getJavaagentFlag(vmargsCheck)
+    if (agentFlag !== null && (isWorkspaceTrusted === undefined || !isWorkspaceTrusted)) {
+      const keyVmargs = getKey(IS_WORKSPACE_VMARGS_ALLOWED, context.storagePath, vmargsCheck)
+      const key = context.globalState.get(keyVmargs)
+      if (key !== true && (workspace.workspaceFolders && isInWorkspaceFolder(agentFlag, workspace.workspaceFolders))) {
+        vmargsCheck = workspace.getConfiguration().inspect('java.jdt.ls.vmargs').globalValue
+      }
     }
+  } else {
+    vmargsCheck = getJavaConfiguration().get('jdt.ls.vmargs')
+  }
+  let vmargs
+  if (vmargsCheck !== undefined) {
+    vmargs = String(vmargsCheck)
+  } else {
+    vmargs = ''
+  }
+  const encodingKey = '-Dfile.encoding='
+  if (vmargs.indexOf(encodingKey) < 0) {
+    params.push(encodingKey + getJavaEncoding())
+  }
+  if (vmargs.indexOf('-Xlog:') < 0) {
+    params.push('-Xlog:disable')
   }
 
   parseVMargs(params, vmargs)
-  let launchersFound: string[] = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', { cwd: root })
+
+  if (isLombokSupportEnabled()) {
+    addLombokParam(context, params)
+  }
+
+  if (!isSyntaxServer) {
+    if (vmargs.indexOf(HEAP_DUMP) < 0) {
+      params.push(HEAP_DUMP)
+    }
+    if (vmargs.indexOf(HEAP_DUMP_LOCATION) < 0) {
+      params.push(`${HEAP_DUMP_LOCATION}${path.dirname(workspacePath)}`)
+    }
+
+    const sharedIndexLocation: string = resolveIndexCache(context)
+    if (sharedIndexLocation) {
+      params.push(`-Djdt.core.sharedIndexLocation=${sharedIndexLocation}`)
+    }
+  }
+
+  // "OpenJDK 64-Bit Server VM warning: Options -Xverify:none and -noverify
+  // were deprecated in JDK 13 and will likely be removed in a future release."
+  // so only add -noverify for older versions
+  if (params.indexOf('-noverify') < 0 && params.indexOf('-Xverify:none') < 0 && requirements.tooling_jre_version < 13) {
+    params.push('-noverify')
+  }
+
+  let directory = getJavaConfiguration().get<string>('jdt.ls.directory')
+  if (directory) {
+    directory = workspace.expand(directory)
+    if (!fs.existsSync(directory)) {
+      directory = undefined
+    }
+  }
+  const serverHome = directory ? directory : path.resolve(__dirname, '../server')
+  const launchersFound: Array<string> = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', { cwd: serverHome })
   if (launchersFound.length) {
-    params.push('-jar'); params.push(path.resolve(root, launchersFound[0]))
+    params.push('-jar'); params.push(path.resolve(serverHome, launchersFound[0]))
   } else {
     return null
   }
 
   // select configuration directory according to OS
-  let configDir = 'config_win'
+  let configDir = isSyntaxServer ? 'config_ss_win' : 'config_win'
   if (process.platform === 'darwin') {
-    configDir = 'config_mac'
+    configDir = isSyntaxServer ? 'config_ss_mac' : 'config_mac'
   } else if (process.platform === 'linux') {
-    configDir = 'config_linux'
+    configDir = isSyntaxServer ? 'config_ss_linux' : 'config_linux'
   }
-  params.push('-configuration'); params.push(path.join(root, configDir))
+  params.push('-configuration')
+  if (startedFromSources()) { // Dev Mode: keep the config.ini in the installation location
+    console.log(`Starting jdt.ls ${isSyntaxServer ? '(syntax)' : '(standard)'} from vscode-java sources`)
+    params.push(path.resolve(__dirname, '../server', configDir))
+  } else {
+    params.push(resolveConfiguration(context, configDir))
+  }
   params.push('-data'); params.push(workspacePath)
   return params
 }
 
+function resolveIndexCache(context: ExtensionContext) {
+  let enabled: string = getJavaConfiguration().get("sharedIndexes.enabled")
+  if (enabled === "auto") {
+    enabled = "off"
+  }
+
+  if (enabled !== "on") {
+    return
+  }
+
+  const location: string = getSharedIndexCache(context)
+  if (location) {
+    ensureExists(location)
+    if (!fs.existsSync(location)) {
+      createLogger().error(`Failed to create the shared index directory '${location}', fall back to local index.`)
+      return
+    }
+  }
+
+  return location
+}
+
+export function getSharedIndexCache(context: ExtensionContext): string {
+  let location: string = getJavaConfiguration().get("sharedIndexes.location")
+  if (!location) {
+    switch (process.platform) {
+      case "win32":
+        location = process.env.APPDATA ? path.join(process.env.APPDATA, ".jdt", "index")
+          : path.join(os.homedir(), ".jdt", "index")
+        break
+      case "darwin":
+        location = path.join(os.homedir(), "Library", "Caches", ".jdt", "index")
+        break
+      case "linux":
+        location = process.env.XDG_CACHE_HOME ? path.join(process.env.XDG_CACHE_HOME, ".jdt", "index")
+          : path.join(os.homedir(), ".cache", ".jdt", "index")
+        break
+      default:
+        const globalStoragePath = context.storagePath
+        location = globalStoragePath ? path.join(globalStoragePath, "index") : undefined
+    }
+  } else {
+    // expand homedir
+    location = location.startsWith(`~${path.sep}`) ? path.join(os.homedir(), location.slice(2)) : location
+  }
+
+  return location
+}
+
+function resolveConfiguration(context: ExtensionContext, configDir) {
+  ensureExists(context.storagePath)
+  const extensionPath = path.resolve(context.extensionPath, "package.json")
+  const packageFile = JSON.parse(fs.readFileSync(extensionPath, 'utf8'))
+  let version
+  if (packageFile) {
+    version = packageFile.version
+  }
+  else {
+    version = '0.0.0'
+  }
+  let configuration = path.resolve(context.storagePath, version)
+  ensureExists(configuration)
+  configuration = path.resolve(configuration, configDir)
+  ensureExists(configuration)
+  const configIniName = "config.ini"
+  const configIni = path.resolve(configuration, configIniName)
+  const ini = path.resolve(__dirname, '../server', configDir, configIniName)
+  if (!fs.existsSync(configIni)) {
+    fs.copyFileSync(ini, configIni)
+  } else {
+    const configIniTime = getTimestamp(configIni)
+    const iniTime = getTimestamp(ini)
+    if (iniTime > configIniTime) {
+      deleteDirectory(configuration)
+      resolveConfiguration(context, configDir)
+    }
+  }
+  return configuration
+}
+
 function startedInDebugMode(): boolean {
-  let args = (process as any).execArgv
+  const args = (process as any).execArgv as string[]
+  return hasDebugFlag(args)
+}
+
+function startedFromSources(): boolean {
+  return process.env['DEBUG_VSCODE_JAVA'] === 'true'
+}
+
+// exported for tests
+export function hasDebugFlag(args: string[]): boolean {
   if (args) {
-    return args.some(arg => /^--debug=?/.test(arg) || /^--debug-brk=?/.test(arg) || /^--inspect-brk=?/.test(arg))
+    // See https://nodejs.org/en/docs/guides/debugging-getting-started/
+    return args.some(arg => /^--inspect/.test(arg) || /^--debug/.test(arg))
   }
   return false
 }
 
 // exported for tests
-export function parseVMargs(params: any[], vmargsLine: string): void {
+export function parseVMargs(params: any[], vmargsLine: string) {
   if (!vmargsLine) {
     return
   }
-  let vmargs = vmargsLine.match(/(?:[^\s"]+|"[^"]*")+/g)
+  const vmargs = vmargsLine.match(/(?:[^\s"]+|"[^"]*")+/g)
   if (vmargs === null) {
     return
   }
   vmargs.forEach(arg => {
     // remove all standalone double quotes
-    // tslint:disable-next-line: only-arrow-functions typedef
-    arg = arg.replace(/(\\)?"/g, function($0, $1) { return ($1 ? $0 : '') })
+    arg = arg.replace(/(\\)?"/g, ($0, $1) => { return ($1 ? $0 : '') })
     // unescape all escaped double quotes
     arg = arg.replace(/(\\)"/g, '"')
     if (params.indexOf(arg) < 0) {

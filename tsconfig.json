@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "noEmit": true,
     "experimentalDecorators": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
@@ -19,9 +20,9 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "noImplicitThis": true,
-    "lib": ["ES2018", "ES2019"],
+    "lib": ["es2017", "es2018", "es2019", "ES2020.Promise"],
     "plugins": []
   },
   "include": ["src"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "server", ".vscode-test"]
 }

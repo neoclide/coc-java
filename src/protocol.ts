@@ -1,7 +1,18 @@
 'use strict'
 
-import { RequestType, NotificationType } from 'coc.nvim'
-import { Range, Command, TextDocumentIdentifier, ExecuteCommandParams, CodeActionParams, WorkspaceEdit } from 'vscode-languageserver-protocol'
+import {
+  Command, FormattingOptions,
+  Location,
+  NotificationType, Range, RequestType,
+  SymbolInformation,
+  TextDocumentIdentifier,
+  TextDocumentPositionParams,
+  WorkspaceEdit
+} from 'coc.nvim'
+import {
+  CodeActionParams,
+  ExecuteCommandParams, WorkspaceSymbolParams
+} from 'vscode-languageserver-protocol'
 
 /**
  * The message type. Copied from vscode protocol
@@ -10,19 +21,19 @@ export enum MessageType {
   /**
    * An error message.
    */
-  Error = 1,
+  error = 1,
   /**
    * A warning message.
    */
-  Warning = 2,
+  warning = 2,
   /**
    * An information message.
    */
-  Info = 3,
+  info = 3,
   /**
    * A log message.
    */
-  Log = 4,
+  log = 4,
 }
 
 /**
@@ -43,11 +54,24 @@ export enum FeatureStatus {
   automatic = 2,
 }
 
+export enum EventType {
+  classpathUpdated = 100,
+  projectsImported = 200,
+  incompatibleGradleJdkIssue = 300,
+  upgradeGradleWrapper = 400,
+}
+
 export enum CompileWorkspaceStatus {
-  FAILED = 0,
-  SUCCEED = 1,
-  WITHERROR = 2,
-  CANCELLED = 3,
+  failed = 0,
+  succeed = 1,
+  withError = 2,
+  cancelled = 3,
+}
+
+export enum AccessorKind {
+  getter = 0,
+  setter = 1,
+  both = 2
 }
 
 export interface StatusReport {
@@ -72,36 +96,59 @@ export interface ActionableMessage {
   commands?: Command[]
 }
 
+export interface EventNotification {
+  eventType: EventType
+  data?: any
+}
+
 export namespace StatusNotification {
-  export const type = new NotificationType<StatusReport, void>('language/status')
+  export const type = new NotificationType<StatusReport>('language/status')
 }
 
 export namespace ProgressReportNotification {
-  export const type = new NotificationType<ProgressReport, void>('language/progressReport')
+  export const type = new NotificationType<ProgressReport>('language/progressReport')
 }
 
 export namespace ClassFileContentsRequest {
-  export const type = new RequestType<TextDocumentIdentifier, string, void, void>('java/classFileContents')
+  export const type = new RequestType<TextDocumentIdentifier, string, void>('java/classFileContents')
 }
 
 export namespace ProjectConfigurationUpdateRequest {
-  export const type = new NotificationType<TextDocumentIdentifier, void>('java/projectConfigurationUpdate')
+  export const type = new NotificationType<TextDocumentIdentifier>('java/projectConfigurationUpdate')
+  export const typeV2 = new NotificationType<ProjectConfigurationsUpdateParam>('java/projectConfigurationsUpdate')
+}
+
+export interface ProjectConfigurationsUpdateParam {
+  identifiers: TextDocumentIdentifier[]
 }
 
 export namespace ActionableNotification {
-  export const type = new NotificationType<ActionableMessage, void>('language/actionableNotification')
+  export const type = new NotificationType<ActionableMessage>('language/actionableNotification')
+}
+
+export namespace EventNotification {
+  export const type = new NotificationType<EventNotification>('language/eventNotification')
 }
 
 export namespace CompileWorkspaceRequest {
-  export const type = new RequestType<boolean, CompileWorkspaceStatus, void, void>('java/buildWorkspace')
+  export const type = new RequestType<boolean, CompileWorkspaceStatus, void>('java/buildWorkspace')
+}
+
+export namespace BuildProjectRequest {
+  export const type = new RequestType<BuildProjectParams, CompileWorkspaceStatus, void>('java/buildProjects')
+}
+
+export interface BuildProjectParams {
+  identifiers: TextDocumentIdentifier[]
+  isFullBuild: boolean
 }
 
 export namespace ExecuteClientCommandRequest {
-  export const type = new RequestType<ExecuteCommandParams, any, void, void>('workspace/executeClientCommand')
+  export const type = new RequestType<ExecuteCommandParams, any, void>('workspace/executeClientCommand')
 }
 
-export namespace SendNotificationRequest {
-  export const type = new RequestType<ExecuteCommandParams, any, void, void>('workspace/notify')
+export namespace ServerNotification {
+  export const type = new NotificationType<ExecuteCommandParams>('workspace/notify')
 }
 
 export interface SourceAttachmentRequest {
@@ -136,7 +183,7 @@ export interface OverridableMethodsResponse {
 }
 
 export namespace ListOverridableMethodsRequest {
-  export const type = new RequestType<CodeActionParams, OverridableMethodsResponse, void, void>('java/listOverridableMethods')
+  export const type = new RequestType<CodeActionParams, OverridableMethodsResponse, void>('java/listOverridableMethods')
 }
 
 export interface AddOverridableMethodParams {
@@ -145,13 +192,15 @@ export interface AddOverridableMethodParams {
 }
 
 export namespace AddOverridableMethodsRequest {
-  export const type = new RequestType<AddOverridableMethodParams, WorkspaceEdit, void, void>('java/addOverridableMethods')
+  export const type = new RequestType<AddOverridableMethodParams, WorkspaceEdit, void>('java/addOverridableMethods')
 }
 
 export interface VariableBinding {
   bindingKey: string
   name: string
   type: string
+  isField: boolean
+  isSelected?: boolean
 }
 
 export interface CheckHashCodeEqualsResponse {
@@ -161,7 +210,7 @@ export interface CheckHashCodeEqualsResponse {
 }
 
 export namespace CheckHashCodeEqualsStatusRequest {
-  export const type = new RequestType<CodeActionParams, CheckHashCodeEqualsResponse, void, void>('java/checkHashCodeEqualsStatus')
+  export const type = new RequestType<CodeActionParams, CheckHashCodeEqualsResponse, void>('java/checkHashCodeEqualsStatus')
 }
 
 export interface GenerateHashCodeEqualsParams {
@@ -171,11 +220,11 @@ export interface GenerateHashCodeEqualsParams {
 }
 
 export namespace GenerateHashCodeEqualsRequest {
-  export const type = new RequestType<GenerateHashCodeEqualsParams, WorkspaceEdit, void, void>('java/generateHashCodeEquals')
+  export const type = new RequestType<GenerateHashCodeEqualsParams, WorkspaceEdit, void>('java/generateHashCodeEquals')
 }
 
 export namespace OrganizeImportsRequest {
-  export const type = new RequestType<CodeActionParams, WorkspaceEdit, void, void>('java/organizeImports')
+  export const type = new RequestType<CodeActionParams, WorkspaceEdit, void>('java/organizeImports')
 }
 
 export interface ImportCandidate {
@@ -195,7 +244,7 @@ export interface CheckToStringResponse {
 }
 
 export namespace CheckToStringStatusRequest {
-  export const type = new RequestType<CodeActionParams, CheckToStringResponse, void, void>('java/checkToStringStatus')
+  export const type = new RequestType<CodeActionParams, CheckToStringResponse, void>('java/checkToStringStatus')
 }
 
 export interface GenerateToStringParams {
@@ -203,19 +252,24 @@ export interface GenerateToStringParams {
   fields: VariableBinding[]
 }
 
+export namespace GenerateToStringRequest {
+  export const type = new RequestType<GenerateToStringParams, WorkspaceEdit, void>('java/generateToString')
+}
+
 export interface AccessorField {
   fieldName: string
   isStatic: boolean
   generateGetter: boolean
   generateSetter: boolean
+  typeName: string
 }
 
-export namespace GenerateToStringRequest {
-  export const type = new RequestType<GenerateToStringParams, WorkspaceEdit, void, void>('java/generateToString')
+export interface AccessorCodeActionParams extends CodeActionParams {
+  kind: AccessorKind
 }
 
-export namespace ResolveUnimplementedAccessorsRequest {
-  export const type = new RequestType<CodeActionParams, AccessorField[], void, void>('java/resolveUnimplementedAccessors')
+export namespace AccessorCodeActionRequest {
+  export const type = new RequestType<AccessorCodeActionParams, AccessorField[], void>('java/resolveUnimplementedAccessors')
 }
 
 export interface GenerateAccessorsParams {
@@ -224,7 +278,7 @@ export interface GenerateAccessorsParams {
 }
 
 export namespace GenerateAccessorsRequest {
-  export const type = new RequestType<GenerateAccessorsParams, WorkspaceEdit, void, void>('java/generateAccessors')
+  export const type = new RequestType<GenerateAccessorsParams, WorkspaceEdit, void>('java/generateAccessors')
 }
 
 export interface MethodBinding {
@@ -239,7 +293,7 @@ export interface CheckConstructorsResponse {
 }
 
 export namespace CheckConstructorStatusRequest {
-  export const type = new RequestType<CodeActionParams, CheckConstructorsResponse, void, void>('java/checkConstructorsStatus')
+  export const type = new RequestType<CodeActionParams, CheckConstructorsResponse, void>('java/checkConstructorsStatus')
 }
 
 export interface GenerateConstructorsParams {
@@ -249,7 +303,7 @@ export interface GenerateConstructorsParams {
 }
 
 export namespace GenerateConstructorsRequest {
-  export const type = new RequestType<GenerateConstructorsParams, WorkspaceEdit, void, void>('java/generateConstructors')
+  export const type = new RequestType<GenerateConstructorsParams, WorkspaceEdit, void>('java/generateConstructors')
 }
 
 export interface DelegateField {
@@ -262,7 +316,7 @@ export interface CheckDelegateMethodsResponse {
 }
 
 export namespace CheckDelegateMethodsStatusRequest {
-  export const type = new RequestType<CodeActionParams, CheckDelegateMethodsResponse, void, void>('java/checkDelegateMethodsStatus')
+  export const type = new RequestType<CodeActionParams, CheckDelegateMethodsResponse, void>('java/checkDelegateMethodsStatus')
 }
 
 export interface DelegateEntry {
@@ -276,5 +330,119 @@ export interface GenerateDelegateMethodsParams {
 }
 
 export namespace GenerateDelegateMethodsRequest {
-  export const type = new RequestType<GenerateDelegateMethodsParams, WorkspaceEdit, void, void>('java/generateDelegateMethods')
+  export const type = new RequestType<GenerateDelegateMethodsParams, WorkspaceEdit, void>('java/generateDelegateMethods')
+}
+
+export interface RenamePosition {
+  uri: string
+  offset: number
+  length: number
+}
+
+export interface RefactorWorkspaceEdit {
+  edit: WorkspaceEdit
+  command?: Command
+  errorMessage?: string
+}
+
+export interface GetRefactorEditParams {
+  command: string
+  context: CodeActionParams
+  options: FormattingOptions
+  commandArguments: any[]
+}
+
+export namespace GetRefactorEditRequest {
+  export const type = new RequestType<GetRefactorEditParams, RefactorWorkspaceEdit, void>('java/getRefactorEdit')
+}
+
+export interface SelectionInfo {
+  name: string
+  length: number
+  offset: number
+  params?: string[]
+}
+
+export interface InferSelectionParams {
+  command: string
+  context: CodeActionParams
+}
+
+export namespace InferSelectionRequest {
+  export const type = new RequestType<InferSelectionParams, SelectionInfo[], void>('java/inferSelection')
+}
+
+export interface PackageNode {
+  displayName: string
+  uri: string
+  path: string
+  project: string
+  isDefaultPackage: boolean
+  isParentOfSelectedFile: boolean
+}
+
+export interface MoveParams {
+  moveKind: string
+  sourceUris: string[]
+  params: CodeActionParams
+  destination?: any
+  updateReferences?: boolean
+}
+
+export interface MoveDestinationsResponse {
+  errorMessage?: string
+  destinations: any[]
+}
+
+export namespace GetMoveDestinationsRequest {
+  export const type = new RequestType<MoveParams, MoveDestinationsResponse, void>('java/getMoveDestinations')
+}
+
+export namespace MoveRequest {
+  export const type = new RequestType<MoveParams, RefactorWorkspaceEdit, void>('java/move')
+}
+
+export interface SearchSymbolParams extends WorkspaceSymbolParams {
+  projectName: string
+  maxResults?: number
+  sourceOnly?: boolean
+}
+
+export namespace SearchSymbols {
+  export const type = new RequestType<SearchSymbolParams, SymbolInformation[], void>('java/searchSymbols')
+}
+
+export interface FindLinksParams {
+  type: string
+  position: TextDocumentPositionParams
+}
+
+export interface LinkLocation extends Location {
+  displayName: string
+  kind: string
+}
+
+export namespace FindLinks {
+  export const type = new RequestType<FindLinksParams, LinkLocation[], void>('java/findLinks')
+}
+
+export interface RenameFilesParams {
+  files: Array<{ oldUri: string; newUri: string }>
+}
+
+export namespace WillRenameFiles {
+  export const type = new RequestType<RenameFilesParams, WorkspaceEdit, void>('workspace/willRenameFiles')
+}
+
+export interface GradleCompatibilityInfo {
+  projectUri: string
+  message: string
+  highestJavaVersion: string
+  recommendedGradleVersion: string
+}
+
+export interface UpgradeGradleWrapperInfo {
+  projectUri: string
+  message: string
+  recommendedGradleVersion: string
 }
