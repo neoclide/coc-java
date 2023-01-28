@@ -234,17 +234,19 @@ Settings added by coc-java:
 
 To enable semantic highlighting support, use configuration:
 
-```
+```json
 "semanticTokens.enable": true,
 ```
 
 For java filetype only, use:
 
-```
+```json
 "[java]": {
   "semanticTokens.enable": true,
 }
 ```
+
+Checkout `:h coc-configuration-scope`.
 
 ## Troubleshooting
 
