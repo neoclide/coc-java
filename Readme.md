@@ -250,6 +250,12 @@ For java filetype only, use:
 
 Checkout `:h coc-configuration-scope`.
 
+## Buffer not work
+
+The jdt.ls requires buffer saved to disk to work, save the buffer by `:w`
+command and reload it by `:e` command in your vim.  Or create the file on disk
+before buffer create.
+
 ## Compiler warnings
 
 To customize compiler warnings, create the file `root_project/.settings/org.eclipse.jdt.core.prefs` with values presented at https://help.eclipse.org/neon/topic/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/core/JavaCore.html 

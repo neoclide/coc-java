@@ -1,7 +1,7 @@
 'use strict'
 
 import * as chokidar from 'chokidar'
-import { CancellationToken, events, CodeActionContext, CodeActionTriggerKind, commands, ConfigurationTarget, Diagnostic, Document, Emitter, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, RelativePattern, RevealOutputChannelOn, Uri, window, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import { CancellationToken, CodeActionContext, CodeActionTriggerKind, commands, ConfigurationTarget, Diagnostic, Document, Emitter, events, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, RelativePattern, RevealOutputChannelOn, Uri, window, workspace, WorkspaceConfiguration } from 'coc.nvim'
 import * as fs from 'fs'
 import * as fse from 'fs-extra'
 import * as os from 'os'
@@ -26,7 +26,7 @@ import { serverStatusBarProvider } from './serverStatusBarProvider'
 import { ACTIVE_BUILD_TOOL_STATE, cleanWorkspaceFileName, getJavaServerMode, onConfigurationChange, ServerMode } from './settings'
 import { StandardLanguageClient } from './standardLanguageClient'
 import { SyntaxLanguageClient } from './syntaxLanguageClient'
-import { convertToGlob, deleteDirectory, ensureExists, getBuildFilePatterns, getBuildFilesInWorkspace, getExclusionBlob, getInclusionPatternsFromNegatedExclusion, getJavaConfig, getJavaConfiguration, hasBuildToolConflicts, rangeIntersect } from './utils'
+import { convertToGlob, deleteDirectory, ensureExists, getBuildFilePatterns, getExclusionBlob, getInclusionPatternsFromNegatedExclusion, getJavaConfig, getJavaConfiguration, hasBuildToolConflicts, rangeIntersect } from './utils'
 import glob = require('glob')
 
 const syntaxClient: SyntaxLanguageClient = new SyntaxLanguageClient()

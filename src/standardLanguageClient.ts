@@ -314,7 +314,7 @@ export class StandardLanguageClient {
     this.languageClient.onReady().then(() => {
       context.subscriptions.push(commands.registerCommand(GRADLE_CHECKSUM, (wrapper: string, sha256: string) => {
         setGradleWrapperChecksum(wrapper, sha256)
-      }))
+      }, null, true))
 
       context.subscriptions.push(commands.registerCommand(Commands.SHOW_JAVA_REFERENCES, (uri: string, position: Position, locations: Location[]) => {
         commands.executeCommand(Commands.SHOW_REFERENCES, uri, position, locations)
