@@ -63,9 +63,9 @@ export class StandardLanguageClient {
       commands.executeCommand(Commands.SHOW_SERVER_TASK_STATUS)
     }
 
-    // context.subscriptions.push(commands.registerCommand(Commands.RUNTIME_VALIDATION_OPEN, () => {
-    //   commands.executeCommand("workbench.action.openSettings", "java.configuration.runtimes")
-    // }))
+    context.subscriptions.push(commands.registerCommand(Commands.RUNTIME_VALIDATION_OPEN, () => {
+      // commands.executeCommand("workbench.action.openSettings", "java.configuration.runtimes")
+    }))
 
     serverStatus.initialize()
     serverStatus.onServerStatusChanged(status => {

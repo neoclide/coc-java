@@ -234,19 +234,24 @@ Settings added by coc-java:
 
 To enable semantic highlighting support, use configuration:
 
-```json
+``` json
 "semanticTokens.enable": true,
 ```
 
 For java filetype only, use:
 
-```json
+``` json
 "[java]": {
   "semanticTokens.enable": true,
 }
 ```
 
 Checkout `:h coc-configuration-scope`.
+
+## Compiler warnings
+
+To customize compiler warnings, create the file `root_project/.settings/org.eclipse.jdt.core.prefs` with values presented at https://help.eclipse.org/neon/topic/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/core/JavaCore.html 
+
 
 ## Troubleshooting
 
