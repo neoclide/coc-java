@@ -83,6 +83,7 @@ The default runtime will be used when you open standalone Java files.
 - Diagnostic tags
 - Call Hierarchy
 - Type Hierarchy (`:CocCommand java.action.showTypeHierarchy`)
+- Share indexes (enabled by configuration `java.sharedIndexes.enabled`)
 
 See the [changelog](CHANGELOG.md) for the latest release.
 
@@ -229,6 +230,7 @@ Settings added by coc-java:
 
 - `java.enabled`
 - `java.jdt.ls.directory`
+- `java.jdt.ls.statusIcons`
 
 ## Semantic Highlighting
 
@@ -251,6 +253,10 @@ Checkout `:h coc-configuration-scope`.
 ## Compiler warnings
 
 To customize compiler warnings, create the file `root_project/.settings/org.eclipse.jdt.core.prefs` with values presented at https://help.eclipse.org/neon/topic/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/core/JavaCore.html 
+
+## "Classpath is incomplete" warning
+
+See https://github.com/redhat-developer/vscode-java/wiki/%22Classpath-is-incomplete%22-warning
 
 
 ## Troubleshooting

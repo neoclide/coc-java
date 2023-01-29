@@ -1,7 +1,7 @@
 'use strict'
 
 import * as chokidar from 'chokidar'
-import { CancellationToken, CodeActionContext, CodeActionTriggerKind, commands, ConfigurationTarget, Diagnostic, Document, Emitter, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, RelativePattern, RevealOutputChannelOn, Uri, window, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import { CancellationToken, events, CodeActionContext, CodeActionTriggerKind, commands, ConfigurationTarget, Diagnostic, Document, Emitter, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, RelativePattern, RevealOutputChannelOn, Uri, window, workspace, WorkspaceConfiguration } from 'coc.nvim'
 import * as fs from 'fs'
 import * as fse from 'fs-extra'
 import * as os from 'os'
@@ -180,6 +180,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
               })
             }
           },
+          provideSelectionRanges: (document, positions, token, next) => {
+            if (events.insertMode) return undefined
+            return next(document, positions, token)
+          },
           // https://github.com/redhat-developer/vscode-java/issues/2130
           // include all diagnostics for the current line in the CodeActionContext params for the performance reason
           provideCodeActions: (document, range, context, token, next) => {
@@ -212,9 +216,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
               }
             }
             return client.sendRequest(CodeActionRequest.type.method, params, token).then((values) => {
-              if (values === null) {
-                return undefined
-              }
+              if (values === null) return undefined
               return values
             }, (error) => {
               return client.handleFailedRequest(CodeActionRequest.type as any, token, error, [])
