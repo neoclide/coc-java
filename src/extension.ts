@@ -2,6 +2,7 @@
 
 import * as chokidar from 'chokidar'
 import { CancellationToken, CodeActionContext, CodeActionTriggerKind, commands, ConfigurationTarget, Diagnostic, Document, Emitter, events, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, RelativePattern, RevealOutputChannelOn, Uri, window, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as fse from 'fs-extra'
 import * as os from 'os'
@@ -118,7 +119,8 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
   }).then(async (requirements) => {
     const triggerFiles = await getTriggerFiles()
     return new Promise<ExtensionAPI>(async (resolve) => {
-      const workspacePath = path.resolve(`${storagePath}/jdt_ws`)
+      const id = createHash('md5').update(workspace.root).digest('hex')
+      const workspacePath = path.resolve(`${storagePath}/jdt_ws_${id}`)
       const syntaxServerWorkspacePath = path.resolve(`${storagePath}/ss_ws`)
 
       let serverMode = getJavaServerMode()
