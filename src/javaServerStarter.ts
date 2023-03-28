@@ -169,6 +169,9 @@ function prepareParams(requirements: RequirementsData, javaConfiguration, worksp
   if (startedFromSources()) { // Dev Mode: keep the config.ini in the installation location
     console.log(`Starting jdt.ls ${isSyntaxServer ? '(syntax)' : '(standard)'} from vscode-java sources`)
     params.push(path.resolve(__dirname, '../server', configDir))
+  } else if (directory) {
+    console.log(`Starting jdt.ls ${isSyntaxServer ? '(syntax)' : '(standard)'} from custom directory ${directory}`)
+    params.push(path.resolve(directory, configDir))
   } else {
     params.push(resolveConfiguration(context, configDir))
   }
