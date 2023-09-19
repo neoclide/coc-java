@@ -88,6 +88,9 @@ export function addLombokParam(context: ExtensionContext, params: string[]) {
       deleteIndex.push(i)
     }
   }
+  
+  const lastMatchedParam = params[deleteIndex[deleteIndex.length - 1]];
+
   for (let i = deleteIndex.length - 1; i >= 0; i--) {
     params.splice(deleteIndex[i], 1)
   }
@@ -95,6 +98,13 @@ export function addLombokParam(context: ExtensionContext, params: string[]) {
   // use the extension's Lombok version by default.
   isExtensionLombok = true
   let lombokJarPath: string = context.workspaceState.get(JAVA_LOMBOK_PATH)
+  
+  // use the supplied lombok jar-path if the above statement resolves to
+  // undefined
+  if (!lombokJarPath && !!lastMatchedParam) {
+    lombokJarPath = lastMatchedParam.replace('-javaagent:', '');
+  }
+
   if (lombokJarPath && fse.existsSync(lombokJarPath)) {
     if (isCompatibleLombokVersion(lombokPath2VersionNumber(lombokJarPath))) {
       isExtensionLombok = false
