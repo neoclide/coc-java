@@ -91,21 +91,23 @@ See the [changelog](CHANGELOG.md) for the latest release.
 
 The following commands are available:
 
-- `java.projectConfiguration.update: Reload Projects`: It forces project configuration / classpath updates (eg. dependency changes or Java compilation level), according to the project build descriptor.
-- `java.project.import.command: Import Java Projects into Workspace`: detects and imports all the Java projects into the Java Language Server workspace.
-- `java.open.serverLog: Open Java Language Server Log File`: opens the Java Language Server log file, useful for troubleshooting problems.
-- `java.open.clientLog: Open Java Extension Log File`: opens the Java extension log file, useful for troubleshooting problems.
-- `java.open.logs: Open All Log Files`: opens both the Java Language Server log file and the Java extension log file.
-- `java.workspace.compile: Force Java Compilation`: manually triggers compilation of the workspace.
-- `java.project.build: Rebuild Projects`: manually triggers a full build of the selected projects.
-- `java.open.formatter.settings: Open Java Formatter Settings`: opens the Eclipse formatter settings. Creates a new settings file if none exists.
-- `java.clean.workspace: Clean Java Language Server Workspace`: cleans the Java language server workspace.
-- `java.project.updateSourceAttachment.command: Attach Source`: attaches a jar/zip source to the currently opened binary class file.
-- `java.project.addToSourcePath.command: Add Folder to Java Source Path`: adds the selected folder to its project source path.
-- `java.project.removeFromSourcePath.command: Remove Folder from Java Source Path`: removes the selected folder from its project source path.
-- `java.project.listSourcePaths.command: List All Java Source Paths`: lists all the Java source paths recognized by the Java Language Server workspace.
-- `java.show.server.task.status: Show Build Job Status`: shows the Java Language Server job status in Visual Studio Code terminal.
-- `java.action.navigateToSuperImplementation: Go to Super Implementation`: goes to the super implementation for the current selected symbol in editor.
+Name | Command | Description
+------------ | ------------- | ------------
+Reload Projects | java.projectConfiguration.update | It forces project configuration / classpath updates (eg. dependency changes or Java compilation level), according to the project build descriptor.
+Import Java Projects into Workspace | java.project.import.command | detects and imports all the Java projects into the Java Language Server workspace.
+Open Java Language Server Log File | java.open.serverLog | opens the Java Language Server log file, useful for troubleshooting problems.
+Open Java Extension Log File | java.open.clientLog | opens the Java extension log file, useful for troubleshooting problems.
+Open All Log Files | java.open.logs | opens both the Java Language Server log file and the Java extension log file.
+Force Java Compilation | java.workspace.compile | manually triggers compilation of the workspace.
+Rebuild Projects | java.project.build | manually triggers a full build of the selected projects.
+Open Java Formatter Settings | java.open.formatter.settings | opens the Eclipse formatter settings. Creates a new settings file if none exists.
+Clean Java Language Server Workspace | java.clean.workspace | cleans the Java language server workspace.
+Attach Source | java.project.updateSourceAttachment.command | attaches a jar/zip source to the currently opened binary class file.
+Add Folder to Java Source Path | java.project.addToSourcePath.command | adds the selected folder to its project source path.
+Remove Folder from Java Source Path | java.project.removeFromSourcePath.command | removes the selected folder from its project source path.
+List All Java Source Paths | java.project.listSourcePaths.command | lists all the Java source paths recognized by the Java Language Server workspace.
+Show Build Job Status | java.show.server.task.status | shows the Java Language Server job status in Visual Studio Code terminal.
+Go to Super Implementation | java.action.navigateToSuperImplementation | goes to the super implementation for the current selected symbol in editor.
 
 ## Supported settings
 
