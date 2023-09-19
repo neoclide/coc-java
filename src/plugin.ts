@@ -3,6 +3,7 @@
 import { commands, Extension, extensions, window } from 'coc.nvim'
 import * as path from 'path'
 import { Commands } from './commands'
+import { getJavaConfiguration } from './utils'
 
 export let existingExtensions: Array<string> = []
 export let buildFilePatterns: Array<string> = []
@@ -21,6 +22,10 @@ export function collectJavaExtensions(extensions: readonly Extension<any>[]): st
         }
       }
     }
+  }
+  const userBundles = getJavaConfiguration().get<string[]>("jdt.ls.bundles")
+  for (const bundle of userBundles) {
+    result.push(bundle)
   }
   // Make a copy of extensions:
   existingExtensions = result.slice()

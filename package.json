@@ -101,6 +101,12 @@
           "description": "Specifies the folder path to the JDK (17 or more recent) used to launch the Java Language Server. This setting will replace the Java extension's embedded JRE to start the Java Language Server. \n\nOn Windows, backslashes must be escaped, i.e.\n\"java.jdt.ls.java.home\":\"C:\\\\Program Files\\\\Java\\\\jdk-17.0_3\"",
           "scope": "machine-overridable"
         },
+        "java.jdt.ls.bundles": {
+          "type": "array",
+          "default": [],
+          "scope": "window",
+          "description": "Additional bundles to load when starting jdt.ls, e.g. those from vscode-java-debug, vscode-java-test, etc."
+        },
         "java.jdt.ls.vmargs": {
           "type": [
             "string",
