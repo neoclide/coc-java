@@ -1,6 +1,6 @@
 'use strict'
 
-import { CancellationToken, services, CodeActionKind, commands, ConfigurationTarget, DocumentSelector, Emitter, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, languages, Location, Position, Range, StreamInfo, TextDocumentPositionParams, TextEditor, Uri, window, workspace } from "coc.nvim"
+import { CancellationToken, CodeActionKind, commands, ConfigurationTarget, DocumentSelector, Emitter, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, languages, Location, Position, Range, services, StreamInfo, TextDocumentPositionParams, TextEditor, Uri, window, workspace } from "coc.nvim"
 import * as fse from 'fs-extra'
 import { findRuntimes } from "jdk-utils"
 import * as net from 'net'
@@ -10,7 +10,7 @@ import { apiManager } from "./apiManager"
 import * as buildPath from './buildpath'
 import { javaRefactorKinds, RefactorDocumentProvider } from "./codeActionProvider"
 import { Commands } from "./commands"
-import { ClientStatus, ExtensionAPI } from "./extension.api"
+import { ClientStatus } from "./extension.api"
 import * as fileEventHandler from './fileEventHandler'
 import { gradleCodeActionMetadata, GradleCodeActionProvider } from "./gradle/gradleCodeActionProvider"
 import { JavaInlayHintsProvider } from "./inlayHintsProvider"
@@ -52,7 +52,7 @@ export class StandardLanguageClient {
   private languageClient: LanguageClient
   private status: ClientStatus = ClientStatus.uninitialized;
 
-  public async initialize(context: ExtensionContext, requirements: RequirementsData, clientOptions: LanguageClientOptions, workspacePath: string, jdtEventEmitter: Emitter<Uri>, resolve: (value: ExtensionAPI) => void): Promise<void> {
+  public async initialize(context: ExtensionContext, requirements: RequirementsData, clientOptions: LanguageClientOptions, workspacePath: string, jdtEventEmitter: Emitter<Uri>): Promise<void> {
     if (this.status !== ClientStatus.uninitialized) {
       return
     }
@@ -136,13 +136,11 @@ export class StandardLanguageClient {
             serverStatus.updateServerStatus(ServerStatusKind.ready)
             // commands.executeCommand('setContext', 'javaLSReady', true)
             apiManager.updateStatus(ClientStatus.started)
-            resolve(apiManager.getApiInstance())
             break
           case 'Error':
             this.status = ClientStatus.error
             serverStatus.updateServerStatus(ServerStatusKind.error)
             apiManager.updateStatus(ClientStatus.error)
-            resolve(apiManager.getApiInstance())
             break
           case 'ProjectStatus':
             if (report.message === "WARNING") {
@@ -576,6 +574,10 @@ export class StandardLanguageClient {
         }
       }))
 
+      context.subscriptions.push(commands.registerCommand(Commands.UPGRADE_GRADLE_WRAPPER, (projectUri: string, version?: string) => {
+        upgradeGradle(projectUri, version)
+      }))
+
       languages.registerCodeActionProvider([{
         language: "xml",
         scheme: "file",
@@ -585,7 +587,7 @@ export class StandardLanguageClient {
       languages.registerCodeActionProvider([{
         scheme: "file",
         pattern: "**/{gradle/wrapper/gradle-wrapper.properties,build.gradle,build.gradle.kts,settings.gradle,settings.gradle.kts}"
-      }], new GradleCodeActionProvider(context), 'java', gradleCodeActionMetadata.providedCodeActionKinds.slice())
+      }], new GradleCodeActionProvider(), 'java', gradleCodeActionMetadata.providedCodeActionKinds.slice())
 
       if (languages.registerInlayHintsProvider) {
         context.subscriptions.push(languages.registerInlayHintsProvider(JAVA_SELECTOR, new JavaInlayHintsProvider(this.languageClient)))

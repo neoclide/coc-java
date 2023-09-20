@@ -4,7 +4,6 @@ import { CancellationToken, CodeAction, CodeActionContext, CodeActionKind, CodeA
 import * as fse from 'fs-extra'
 import * as path from 'path'
 import { Commands } from '../commands'
-import { upgradeGradle } from '../standardLanguageClientUtils'
 
 const UPGRADE_GRADLE_WRAPPER_TITLE = "Upgrade Gradle Wrapper"
 const WRAPPER_PROPERTIES_DESCRIPTOR = "gradle/wrapper/gradle-wrapper.properties"
@@ -12,12 +11,6 @@ const GRADLE_PROBLEM_ID = 0x00080000
 const GRADLE_INVALID_TYPE_CODE_ID = GRADLE_PROBLEM_ID + 1
 
 export class GradleCodeActionProvider implements CodeActionProvider<CodeAction> {
-
-  constructor(context: ExtensionContext) {
-    context.subscriptions.push(commands.registerCommand(Commands.UPGRADE_GRADLE_WRAPPER, (projectUri: string) => {
-      upgradeGradle(projectUri)
-    }))
-  }
 
   public provideCodeActions(document: TextDocument, range: Range, context: CodeActionContext, token: CancellationToken): ProviderResult<(CodeAction | Command)[]> {
     if (context?.diagnostics?.length && context.diagnostics[0].source === "Java") {

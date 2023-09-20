@@ -6,6 +6,7 @@ import * as path from 'path'
 import { CodeActionParams } from 'vscode-languageserver-protocol'
 import { Commands as javaCommands } from './commands'
 import { GetMoveDestinationsRequest, GetRefactorEditRequest, InferSelectionRequest, MoveRequest, RefactorWorkspaceEdit, RenamePosition, SearchSymbols, SelectionInfo } from './protocol'
+import { getExtractInterfaceArguments, revealExtractedInterface } from './refactoring/extractInterface';
 
 export function registerCommands(languageClient: LanguageClient, context: ExtensionContext) {
   registerApplyRefactorCommand(languageClient, context)
@@ -37,6 +38,7 @@ function registerApplyRefactorCommand(languageClient: LanguageClient, context: E
       || command === 'extractConstant'
       || command === 'extractMethod'
       || command === 'extractField'
+      || command === 'extractInterface'
       || command === 'assignField'
       || command === 'convertVariableToField'
       || command === 'invertVariable'
@@ -100,6 +102,12 @@ function registerApplyRefactorCommand(languageClient: LanguageClient, context: E
           }
           commandArguments.push(expression)
         }
+      } else if (command === 'extractInterface') {
+        const args = await getExtractInterfaceArguments(languageClient, params);
+        if (args.length === 0) {
+          return;
+        }
+        commandArguments.push(...args);
       }
 
       const result: RefactorWorkspaceEdit = await languageClient.sendRequest(GetRefactorEditRequest.type, {
@@ -110,6 +118,9 @@ function registerApplyRefactorCommand(languageClient: LanguageClient, context: E
       })
 
       await applyRefactorEdit(languageClient, result)
+      if (command === 'extractInterface') {
+        await revealExtractedInterface(result);
+      }
     } else if (command === 'moveFile') {
       if (!commandInfo || !commandInfo.uri) {
         return

@@ -283,7 +283,13 @@ export namespace Commands {
 
   export const GET_WORKSPACE_PATH = '_java.workspace.path'
 
-  export const UPGRADE_GRADLE_WRAPPER = '_java.gradle.upgradeWrapper'
+  /**
+ * Update the gradle wrapper version for the given project
+ * client-side & server-side commands
+ */
+  export const UPGRADE_GRADLE_WRAPPER_CMD = 'java.project.upgradeGradle.command'
+  export const UPGRADE_GRADLE_WRAPPER = 'java.project.upgradeGradle'
+
 
   export const LOMBOK_CONFIGURE = "java.lombokConfigure"
 

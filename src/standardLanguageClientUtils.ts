@@ -136,15 +136,15 @@ export async function upgradeGradle(projectUri: string, version?: string): Promi
     title: "Upgrading Gradle wrapper...",
     cancellable: true,
   }, (_progress, token) => {
-    return commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, "java.project.upgradeGradle", projectUri, version, token)
+    return commands.executeCommand<string>(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.UPGRADE_GRADLE_WRAPPER, projectUri, version, token);
   })
   if (result) {
-    const propertiesFile = path.join(Uri.parse(projectUri).fsPath, "gradle", "wrapper", "gradle-wrapper.properties")
-    if (fse.pathExists(propertiesFile)) {
-      const content = await fse.readFile(propertiesFile)
+    // const propertiesFile = path.join(Uri.parse(projectUri).fsPath, "gradle", "wrapper", "gradle-wrapper.properties")
+    if (fse.pathExists(result)) {
+      const content = await fse.readFile(result)
       const offset = content.toString().indexOf("distributionUrl")
       if (offset >= 0) {
-        const document = await workspace.openTextDocument(propertiesFile)
+        const document = await workspace.openTextDocument(result)
         const position = document.textDocument.positionAt(offset)
         const distributionUrlRange = document.getWordRangeAtPosition(position)
         await workspace.jumpTo(document.uri)

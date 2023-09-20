@@ -173,6 +173,12 @@
           "description": "Enable/disable the Maven offline mode.",
           "scope": "window"
         },
+        "java.import.maven.disableTestClasspathFlag": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable/disable test classpath segregation. When enabled, this permits the usage of test resources within a Maven project as dependencies within the compile scope of other projects.",
+          "scope": "window"
+        },
         "java.import.gradle.enabled": {
           "type": "boolean",
           "default": true,
@@ -296,6 +302,18 @@
           ],
           "default": "warning",
           "description": "Specifies severity if the plugin execution is not covered by Maven build lifecycle.",
+          "scope": "window"
+        },
+        "java.configuration.maven.defaultMojoExecutionAction": {
+          "type": "string",
+          "enum": [
+            "ignore",
+            "warn",
+            "error",
+            "execute"
+          ],
+          "default": "ignore",
+          "description": "Specifies default mojo execution action when no associated metadata can be detected.",
           "scope": "window"
         },
         "java.configuration.workspaceCacheLimit": {
@@ -935,7 +953,8 @@
               "addFinalModifier",
               "instanceofPatternMatch",
               "lambdaExpression",
-              "switchExpression"
+              "switchExpression",
+              "tryWithResource"
             ]
           },
           "default": [],
@@ -957,6 +976,11 @@
           "markdownDescription": "Specifies a common index location for all workspaces. See default values as follows:\n \nWindows: First use `\"$APPDATA\\\\.jdt\\\\index\"`, or `\"~\\\\.jdt\\\\index\"` if it does not exist\n \nmacOS: `\"~/Library/Caches/.jdt/index\"`\n \nLinux: First use `\"$XDG_CACHE_HOME/.jdt/index\"`, or `\"~/.cache/.jdt/index\"` if it does not exist",
           "default": "",
           "scope": "window"
+        },
+        "java.refactoring.extract.interface.replace": {
+          "type": "boolean",
+          "markdownDescription": "Specify whether to replace all the occurrences of the subtype with the new extracted interface.",
+          "default": true
         }
       }
     },

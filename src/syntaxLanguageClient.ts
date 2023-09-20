@@ -4,7 +4,7 @@ import * as net from 'net'
 import { DidChangeConfigurationNotification } from 'vscode-languageserver-protocol'
 import { apiManager } from './apiManager'
 import { ClientErrorHandler } from './clientErrorHandler'
-import { ClientStatus, ExtensionAPI } from './extension.api'
+import { ClientStatus } from './extension.api'
 import { createLogger } from './log'
 import { OutputInfoCollector } from './outputInfoCollector'
 import { StatusNotification } from './protocol'
@@ -17,7 +17,7 @@ export class SyntaxLanguageClient {
   private languageClient: LanguageClient
   private status: ClientStatus = ClientStatus.uninitialized;
 
-  public initialize(requirements, clientOptions: LanguageClientOptions, resolve: (value: ExtensionAPI) => void, serverOptions?: ServerOptions) {
+  public initialize(requirements, clientOptions: LanguageClientOptions, serverOptions?: ServerOptions) {
     const newClientOptions: LanguageClientOptions = Object.assign({}, clientOptions, {
       middleware: {
         workspace: {
@@ -72,7 +72,7 @@ export class SyntaxLanguageClient {
             default:
               break
           } if (apiManager.getApiInstance().serverMode === ServerMode.lightWeight) {
-            this.resolveApiOnReady(resolve)
+            apiManager.fireDidServerModeChange(ServerMode.lightWeight)
           }
         })
       })
@@ -106,17 +106,5 @@ export class SyntaxLanguageClient {
 
   public getClient(): LanguageClient {
     return this.languageClient
-  }
-
-  public resolveApi(resolve: (value: ExtensionAPI) => void): void {
-    apiManager.getApiInstance().serverMode = ServerMode.lightWeight
-    apiManager.fireDidServerModeChange(ServerMode.lightWeight)
-    this.resolveApiOnReady(resolve)
-  }
-
-  private resolveApiOnReady(resolve: (value: ExtensionAPI) => void): void {
-    if ([ClientStatus.started, ClientStatus.error].includes(this.status)) {
-      resolve(apiManager.getApiInstance())
-    }
   }
 }
