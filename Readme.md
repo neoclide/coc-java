@@ -17,14 +17,22 @@ Provides Java &trade; language support via
 :CocInstall coc-java
 ```
 
-2. If you do not have a _Java_ Development Kit correctly [set](#setting-the-jdk)
-   - Download and install a Java Development Kit for your project (Java 1.5 or above is supported)
-3. Extension is activated when you first access a Java file
+2. On the following platforms, the extension should activate without any setup : `win32-x64`, `darwin-x64`, `darwin-arm64`, `linux-x64`, `linux-arm64`.\
+If on another platform, or using the "universal" version, you can [set](#setting-the-jdk) a _Java_ Development Kit. It must be Java 17 or above.
+3. Optionally, download and install a Java Development Kit for your project (Java 1.5 or above is supported). See [Project JDKs](#project-jdks) for more details
+
+4. Extension is activated when you first access a Java file
    - Recognizes projects with _Maven_ or _Gradle_ build files in the directory hierarchy.
 
 **Note**: this extension comes with bunlded [jdt.ls](https://github.com/eclipse/eclipse.jdt.ls) from 1.14.0, the same as vscode-java.
 
 ## Setting the JDK
+
+Now that Java extension will publish platform specific versions, it will embed a JRE for supported platforms such as `win32-x64`, `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`. The embedded JRE is used to launch the Language Server for Java. Users are only responsible for configuring [Project JDKs](#project-jdks) to compile your Java projects.
+
+The following part is only kept for the universal version without embedded JRE.
+
+>The tooling JDK will be used to launch the Language Server for Java. And by default, will also be used to compile your projects. Java 17 is the minimum required version.\
 
 The path to the Java Development Kit is searched in the following order:
 
@@ -34,27 +42,30 @@ The path to the Java Development Kit is searched in the following order:
 - on the current system path
 
 This JDK will be used to launch the Java Language Server. And by default, will be used to compile your projects.
++>The tooling JDK will be used to launch the Language Server for Java. And by default, will also be used to compile your projects. Java 17 is the minimum required version.\
+
+
+## Project JDKs
 
 If you need to compile your projects against a different JDK version, it's recommended you configure the `java.configuration.runtimes` property in your user settings, eg:
 
 ```json
 "java.configuration.runtimes": [
   {
-    "name": "JavaSE-1.11",
-    "path": "/path/to/jdk-11",
+    "name": "JavaSE-1.8",
+    "path": "/path/to/jdk-8",
   },
   {
     "name": "JavaSE-11",
     "path": "/path/to/jdk-11",
   },
   {
-    "name": "JavaSE-14",
-    "path": "/path/to/jdk-14",
+    "name": "JavaSE-20",
+    "path": "/path/to/jdk-20",
     "default": true
   },
 ]
 ```
-
 The default runtime will be used when you open standalone Java files.
 
 ## Features

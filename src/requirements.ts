@@ -3,9 +3,10 @@
 import { ExtensionContext, Uri, window, workspace } from 'coc.nvim'
 import expandHomeDir from 'expand-home-dir'
 import * as fse from 'fs-extra'
-import { findRuntimes, getRuntime, getSources, IJavaRuntime, JAVAC_FILENAME, JAVA_FILENAME } from 'jdk-utils'
+import { findRuntimes, getRuntime, getSources, IJavaRuntime, JAVAC_FILENAME } from 'jdk-utils'
 import * as path from 'path'
 import { Commands } from './commands'
+import { checkAndDownloadJRE } from './jre'
 import { createLogger } from './log'
 import { checkJavaPreferences } from './settings'
 
@@ -33,7 +34,7 @@ interface ErrorData {
  *
  */
 export async function resolveRequirements(context: ExtensionContext): Promise<RequirementsData> {
-  let toolingJre: string = await findEmbeddedJRE(context)
+  let toolingJre: string = await checkAndDownloadJRE(context)
   let toolingJreVersion: number = await getMajorVersion(toolingJre)
   return new Promise(async (resolve, reject) => {
     const javaPreferences = await checkJavaPreferences(context)
@@ -118,20 +119,6 @@ export async function resolveRequirements(context: ExtensionContext): Promise<Re
     })
     /* eslint-enable @typescript-eslint/naming-convention */
   })
-}
-
-async function findEmbeddedJRE(context: ExtensionContext): Promise<string | undefined> {
-  const jreHome = context.asAbsolutePath("jre")
-  if (fse.existsSync(jreHome) && fse.statSync(jreHome).isDirectory()) {
-    const candidates = fse.readdirSync(jreHome)
-    for (const candidate of candidates) {
-      if (fse.existsSync(path.join(jreHome, candidate, "bin", JAVA_FILENAME))) {
-        return path.join(jreHome, candidate)
-      }
-    }
-  }
-
-  return
 }
 
 async function findDefaultRuntimeFromSettings(): Promise<string | undefined> {
