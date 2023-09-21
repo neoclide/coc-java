@@ -147,8 +147,10 @@ function registerChooseImportCommand(context: ExtensionContext): void {
             // input.step = i + 1
             // input.totalSteps = selections.length
             disposables.push(
-              input.onDidChangeSelection(items => resolve(items[0])),
-              input.onDidFinish(() => {
+              input.onDidFinish((items) => {
+                if (Array.isArray(items) && items.length > 0) {
+                  return resolve(items[0])
+                }
                 reject(undefined)
               }),
             )
