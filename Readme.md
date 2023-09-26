@@ -41,8 +41,7 @@ The path to the Java Development Kit is searched in the following order:
 - the `JAVA_HOME` environment variable
 - on the current system path
 
-This JDK will be used to launch the Java Language Server. And by default, will be used to compile your projects.
-+>The tooling JDK will be used to launch the Language Server for Java. And by default, will also be used to compile your projects. Java 17 is the minimum required version.\
+The tooling JDK will be used to launch the Language Server for Java. And by default, will also be used to compile your projects. Java 17 is the minimum required version.
 
 ## Project JDKs
 
