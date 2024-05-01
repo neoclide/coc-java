@@ -1,6 +1,6 @@
 'use strict'
 
-import { CancellationToken, CodeActionKind, commands, ConfigurationTarget, DocumentSelector, Emitter, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, languages, Location, Position, Range, services, StreamInfo, TextDocumentPositionParams, TextEditor, Uri, window, workspace } from "coc.nvim"
+import { CancellationToken, CodeActionKind, commands, ConfigurationTarget, DocumentSelector, Emitter, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, languages, Location, Position, Range, services, StreamInfo, TextDocumentPositionParams, TextEditor, Uri, window, nvim, workspace, diagnosticManager, DiagnosticSeverity } from "coc.nvim"
 import * as fse from 'fs-extra'
 import { findRuntimes } from "jdk-utils"
 import * as net from 'net'
@@ -42,9 +42,9 @@ const AS_GRADLE_JVM = " as Gradle JVM"
 const UPGRADE_GRADLE = "Upgrade Gradle to "
 const GRADLE_IMPORT_JVM = "java.import.gradle.java.home"
 export const JAVA_SELECTOR: DocumentSelector = [
-  { scheme: "file", language: "java", pattern: "**/*.java" },
-  { scheme: "jdt", language: "java", pattern: "**/*.class" },
-  { scheme: "untitled", language: "java", pattern: "**/*.java" }
+    { scheme: "file", language: "java", pattern: "**/*.java" },
+    { scheme: "jdt", language: "java", pattern: "**/*.class" },
+    { scheme: "untitled", language: "java", pattern: "**/*.java" }
 ]
 
 export class StandardLanguageClient {
@@ -443,7 +443,6 @@ export class StandardLanguageClient {
           p.report({ message: 'Rebuilding projects...' })
           return new Promise(async (resolve, reject) => {
             const start = new Date().getTime()
-
             let res: CompileWorkspaceStatus
             try {
               res = token ? await this.languageClient.sendRequest(BuildProjectRequest.type, params, token) :
@@ -457,6 +456,10 @@ export class StandardLanguageClient {
 
             const elapsed = new Date().getTime() - start
             const humanVisibleDelay = elapsed < 1000 ? 1000 : 0
+            if (res == CompileWorkspaceStatus.withError) {
+              showCompileBuildDiagnostics()
+              window.showWarningMessage("Build finished with errors")
+            }
             setTimeout(() => { // set a timeout so user would still see the message when build time is short
               resolve()
             }, humanVisibleDelay)
@@ -471,28 +474,29 @@ export class StandardLanguageClient {
             isFullCompile = selection !== 'Incremental'
           }
           p.report({ message: 'Compiling workspace...' })
-          const start = new Date().getTime()
-          let res: CompileWorkspaceStatus
-          try {
-            res = token ? await this.languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile, token)
-              : await this.languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile)
-          } catch (error) {
-            if (error && error.code === -32800) { // Check if the request is cancelled.
-              res = CompileWorkspaceStatus.cancelled
-            } else {
-              throw error
-            }
-          }
-
-          const elapsed = new Date().getTime() - start
-          const humanVisibleDelay = elapsed < 1000 ? 1000 : 0
-          return new Promise((resolve, reject) => {
-            setTimeout(() => { // set a timeout so user would still see the message when build time is short
-              if (res === CompileWorkspaceStatus.succeed) {
-                resolve(res)
+          return new Promise(async (resolve, reject) => {
+            const start = new Date().getTime()
+            let res: CompileWorkspaceStatus
+            try {
+              res = token ? await this.languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile, token)
+                : await this.languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile)
+            } catch (error) {
+              if (error && error.code === -32800) { // Check if the request is cancelled.
+                res = CompileWorkspaceStatus.cancelled
               } else {
-                reject(res)
+                reject(error)
               }
+            }
+
+            const elapsed = new Date().getTime() - start
+            const humanVisibleDelay = elapsed < 1000 ? 1000 : 0
+
+            if (res == CompileWorkspaceStatus.withError) {
+              showCompileBuildDiagnostics()
+              window.showWarningMessage("Compilation finished with errors")
+            }
+            setTimeout(() => { // set a timeout so user would still see the message when build time is short
+              resolve(res)
             }, humanVisibleDelay)
           })
         })
@@ -656,6 +660,19 @@ async function showImportFinishNotification(context: ExtensionContext) {
   }
 }
 
+async function showCompileBuildDiagnostics() {
+  const diagnostics = await diagnosticManager.getDiagnosticList()
+  const normalized = Uri.parse(workspace.getWorkspaceFolder(workspace.cwd).uri)
+
+  const workingDirectoryList = diagnostics.filter(item => isParentFolder(normalized.fsPath, item.file))
+  const errorDiagnostics = workingDirectoryList.filter(item => isErrorDiagnostic(item.level))
+  const quickFixList = await workspace.getQuickfixList(errorDiagnostics.map(item => item.location))
+
+  await nvim.call('setqflist', [quickFixList])
+  let openCommand = await nvim.getVar('coc_quickfix_open_command') as string
+  nvim.command(typeof openCommand === 'string' ? openCommand : 'copen', true)
+}
+
 function logNotification(message: string) {
   return new Promise(() => {
     createLogger().trace(message)
@@ -698,6 +715,24 @@ function setNullAnalysisStatus(status: FeatureStatus) {
 
 function decodeBase64(text: string): string {
   return Buffer.from(text, 'base64').toString('ascii')
+}
+
+function fileStartsWith(dir: string, pdir: string) {
+  return dir.toLowerCase().startsWith(pdir.toLowerCase())
+}
+
+function normalizeFilePath(filepath: string) {
+  return Uri.file(path.resolve(path.normalize(filepath))).fsPath
+}
+
+function isErrorDiagnostic(level: number): boolean {
+  return level == DiagnosticSeverity.Error
+}
+
+function isParentFolder(folder: string, filepath: string): boolean {
+  let pdir = normalizeFilePath(folder)
+  let dir = normalizeFilePath(filepath)
+  return fileStartsWith(dir, pdir) && dir[pdir.length] == path.sep
 }
 
 export function showNoLocationFound(message: string): void {

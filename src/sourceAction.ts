@@ -1,14 +1,15 @@
 'use strict'
 
-import { commands, Disposable, ExtensionContext, LanguageClient, Uri, window, workspace } from 'coc.nvim'
+import { commands, Disposable, ExtensionContext, LanguageClient, TextDocumentIdentifier, Uri, window, workspace } from 'coc.nvim'
 import { CodeActionParams } from 'vscode-languageserver-protocol'
 import { Commands } from './commands'
-import { AccessorCodeActionParams, AccessorCodeActionRequest, AccessorKind, AddOverridableMethodsRequest, CheckConstructorStatusRequest, CheckDelegateMethodsStatusRequest, CheckHashCodeEqualsStatusRequest, CheckToStringStatusRequest, GenerateAccessorsRequest, GenerateConstructorsRequest, GenerateDelegateMethodsRequest, GenerateHashCodeEqualsRequest, GenerateToStringRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, OrganizeImportsRequest, VariableBinding } from './protocol'
+import { AccessorCodeActionParams, AccessorCodeActionRequest, AccessorKind, AddOverridableMethodsRequest, CheckConstructorStatusRequest, CheckDelegateMethodsStatusRequest, CheckHashCodeEqualsStatusRequest, CheckToStringStatusRequest, GenerateAccessorsRequest, GenerateConstructorsRequest, GenerateDelegateMethodsRequest, GenerateHashCodeEqualsRequest, GenerateToStringRequest, ImportCandidate, ImportSelection, ListOverridableMethodsRequest, CleanupRequest, OrganizeImportsRequest, VariableBinding } from './protocol'
 
 export function registerCommands(languageClient: LanguageClient, context: ExtensionContext) {
   registerOverrideMethodsCommand(languageClient, context)
   registerHashCodeEqualsCommand(languageClient, context)
   registerOrganizeImportsCommand(languageClient, context)
+  registerCleanupCommand(languageClient, context)
   registerChooseImportCommand(context)
   registerGenerateToStringCommand(languageClient, context)
   registerGenerateAccessorsCommand(languageClient, context)
@@ -62,6 +63,14 @@ function registerOverrideMethodsCommand(languageClient: LanguageClient, context:
     await workspace.applyEdit(workspaceEdit)
     // await revealWorkspaceEdit(workspaceEdit, languageClient)
   }, null, true))
+}
+
+function registerCleanupCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+    context.subscriptions.push(commands.registerCommand(Commands.MANUAL_CLEANUP, async () => {
+        const textDocument: TextDocumentIdentifier = TextDocumentIdentifier.create(window.activeTextEditor.document.uri)
+        const workspaceEdit = await languageClient.sendRequest(CleanupRequest.type, textDocument);
+        await workspace.applyEdit(workspaceEdit)
+    }));
 }
 
 function registerHashCodeEqualsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
