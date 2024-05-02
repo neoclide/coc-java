@@ -223,6 +223,10 @@ export namespace GenerateHashCodeEqualsRequest {
   export const type = new RequestType<GenerateHashCodeEqualsParams, WorkspaceEdit, void>('java/generateHashCodeEquals')
 }
 
+export namespace CleanupRequest {
+    export const type = new RequestType<TextDocumentIdentifier, WorkspaceEdit, void>('java/cleanup');
+}
+
 export namespace OrganizeImportsRequest {
   export const type = new RequestType<CodeActionParams, WorkspaceEdit, void>('java/organizeImports')
 }

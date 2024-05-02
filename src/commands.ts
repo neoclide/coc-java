@@ -165,6 +165,10 @@ export namespace Commands {
    */
   export const OPEN_JSON_SETTINGS = 'workbench.action.openSettingsJson'
   /**
+   * Manual action cleanup
+   */
+  export const MANUAL_CLEANUP = "java.action.doCleanup";
+  /**
    * Organize imports.
    */
   export const ORGANIZE_IMPORTS = "java.action.organizeImports"
