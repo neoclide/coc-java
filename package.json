@@ -939,9 +939,9 @@
           "markdownDescription": "Specify how to enable the annotation-based null analysis.",
           "scope": "window"
         },
-        "java.cleanup.actionsOnSave": {
+        "java.cleanup.actions": {
           "type": "array",
-          "markdownDescription": "The list of clean ups to be run on the current document when it's saved. Clean ups can automatically fix code style or programming mistakes. Click [HERE](command:_java.learnMoreAboutCleanUps) to learn more about what each clean up does.",
+          "markdownDescription": "The list of clean ups to be run on the current document when it's saved or when the cleanup command is issued. Clean ups can automatically fix code style or programming mistakes.",
           "items": {
             "type": "string",
             "enum": [
@@ -953,6 +953,31 @@
               "invertEquals",
               "addFinalModifier",
               "instanceofPatternMatch",
+              "lambdaExpressionFromAnonymousClass",
+              "lambdaExpression",
+              "switchExpression",
+              "tryWithResource"
+            ]
+          },
+          "default": [],
+          "scope": "window",
+          "order": 10
+        },
+        "java.cleanup.actionsOnSave": {
+          "type": "array",
+          "deprecationMessage": "Deprecated, please use 'java.cleanup.actions' instead.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "qualifyMembers",
+              "qualifyStaticMembers",
+              "addOverride",
+              "addDeprecated",
+              "stringConcatToTextBlock",
+              "invertEquals",
+              "addFinalModifier",
+              "instanceofPatternMatch",
+              "lambdaExpressionFromAnonymousClass",
               "lambdaExpression",
               "switchExpression",
               "tryWithResource"
@@ -960,6 +985,11 @@
           },
           "default": [],
           "scope": "window"
+        },
+        "java.saveActions.cleanup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable cleanup actions on save."
         },
         "java.sharedIndexes.enabled": {
           "type": "string",
@@ -1077,6 +1107,11 @@
       {
         "command": "java.action.showTypeHierarchy",
         "title": "Show Type Hierarchy",
+        "category": "Java"
+      },
+      {
+        "command": "java.action.doCleanup",
+        "title": "Manually apply cleanup actions",
         "category": "Java"
       },
       {
