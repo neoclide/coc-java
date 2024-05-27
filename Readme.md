@@ -69,7 +69,7 @@ The default runtime will be used when you open standalone Java files.
 
 ## Features
 
-- Supports code from Java 1.5 to Java 21
+- Supports code from Java 1.5 to Java 22
 - Maven pom.xml project support
 - Gradle project support (with experimental Android project import support)
 - Standalone Java files support
