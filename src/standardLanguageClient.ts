@@ -1,6 +1,6 @@
 'use strict'
 
-import { CancellationToken, CodeActionKind, commands, ConfigurationTarget, DocumentSelector, Emitter, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, languages, Location, Position, Range, services, StreamInfo, TextDocumentPositionParams, TextEditor, Uri, window, nvim, workspace, diagnosticManager, DiagnosticSeverity } from "coc.nvim"
+import { CancellationToken, CodeActionKind, commands, ConfigurationTarget, DocumentSelector, Emitter, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, languages, Location, Position, Range, services, StreamInfo, TextDocumentPositionParams, TextEditor, Uri, window, nvim, workspace, diagnosticManager, DiagnosticSeverity, DiagnosticItem } from "coc.nvim"
 import * as fse from 'fs-extra'
 import { findRuntimes } from "jdk-utils"
 import * as net from 'net'
@@ -666,7 +666,8 @@ async function showCompileBuildDiagnostics() {
 
   const workingDirectoryList = diagnostics.filter(item => isParentFolder(normalized.fsPath, item.file))
   const errorDiagnostics = workingDirectoryList.filter(item => isErrorDiagnostic(item.level))
-  const quickFixList = await workspace.getQuickfixList(errorDiagnostics.map(item => item.location))
+  const filesDiagnostics = errorDiagnostics.filter(item => isFileDiagnostic(item))
+  const quickFixList = await workspace.getQuickfixList(filesDiagnostics.map(item => item.location))
 
   await nvim.call('setqflist', [quickFixList])
   let openCommand = await nvim.getVar('coc_quickfix_open_command') as string
@@ -727,6 +728,12 @@ function normalizeFilePath(filepath: string) {
 
 function isErrorDiagnostic(level: number): boolean {
   return level == DiagnosticSeverity.Error
+}
+
+function isFileDiagnostic(item: DiagnosticItem): boolean {
+    const basename = path.basename(item.file);
+    const extension = path.extname(item.file);
+    return basename == "pom.xml" || basename === "build.gradle" || extension === ".java"
 }
 
 function isParentFolder(folder: string, filepath: string): boolean {
