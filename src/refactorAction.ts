@@ -1,14 +1,14 @@
 'use strict'
 
-import { commands, DeleteFile, ExtensionContext, FormattingOptions, LanguageClient, Position, QuickPickItem, Range, RenameFile, SymbolInformation, TextDocumentEdit, Uri, window, workspace, WorkspaceEdit } from 'coc.nvim'
-import { existsSync } from 'fs'
+import {commands, DeleteFile, ExtensionContext, FormattingOptions, LanguageClient, Position, QuickPickItem, Range, RenameFile, SymbolInformation, TextDocumentEdit, Uri, window, workspace, WorkspaceEdit} from 'coc.nvim'
+import {existsSync} from 'fs'
 import * as path from 'path'
-import { CodeActionParams } from 'vscode-languageserver-protocol'
-import { Commands as javaCommands } from './commands'
-import { GetMoveDestinationsRequest, GetRefactorEditRequest, InferSelectionRequest, MoveRequest, RefactorWorkspaceEdit, RenamePosition, SearchSymbols, SelectionInfo } from './protocol'
-import { getExtractInterfaceArguments, revealExtractedInterface } from './refactoring/extractInterface'
-import { renderChangeSignaturePanel } from 'coc-java-dev/src/refactoring/changeSignature'
-import { applyRefactorEdit } from './standardLanguageClientUtils'
+import {CodeActionParams} from 'vscode-languageserver-protocol'
+import {Commands as javaCommands} from './commands'
+import {GetMoveDestinationsRequest, GetRefactorEditRequest, InferSelectionRequest, MoveRequest, RefactorWorkspaceEdit, RenamePosition, SearchSymbols, SelectionInfo} from './protocol'
+import {getExtractInterfaceArguments, revealExtractedInterface} from './refactoring/extractInterface'
+import {renderChangeSignaturePanel} from 'coc-java-dev/src/refactoring/changeSignature'
+import {applyRefactorEdit} from './standardLanguageClientUtils'
 
 export function registerCommands(languageClient: LanguageClient, context: ExtensionContext) {
     registerApplyRefactorCommand(languageClient, context)

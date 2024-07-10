@@ -1,17 +1,17 @@
 'use strict'
 
-import { Command, languages, Uri, workspace } from 'coc.nvim'
+import {Command, languages, Uri, workspace} from 'coc.nvim'
 import * as path from "path"
-import { Commands } from "./commands"
-import { StatusIcon } from "./serverStatusBarProvider"
+import {Commands} from "./commands"
+import {StatusIcon} from "./serverStatusBarProvider"
 
 export const languageServerDocumentSelector = [
-    { scheme: 'file', language: 'java' },
-    { scheme: 'jdt', language: 'java' },
-    { scheme: 'untitled', language: 'java' },
-    { pattern: '**/pom.xml' },
-    { pattern: '**/{build,settings}.gradle' },
-    { pattern: '**/{build,settings}.gradle.kts' }
+    {scheme: 'file', language: 'java'},
+    {scheme: 'jdt', language: 'java'},
+    {scheme: 'untitled', language: 'java'},
+    {pattern: '**/pom.xml'},
+    {pattern: '**/{build,settings}.gradle'},
+    {pattern: '**/{build,settings}.gradle.kts'}
 ]
 
 export function supportsLanguageStatus(): boolean {

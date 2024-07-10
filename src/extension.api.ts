@@ -1,8 +1,8 @@
-import { GetDocumentSymbolsCommand } from './documentSymbols'
-import { GoToDefinitionCommand } from './goToDefinition'
-import { RequirementsData } from './requirements'
-import { CancellationToken, Command, ProviderResult, Uri, Event, TextDocumentPositionParams } from 'coc.nvim'
-import { ServerMode } from './settings'
+import {GetDocumentSymbolsCommand} from './documentSymbols'
+import {GoToDefinitionCommand} from './goToDefinition'
+import {RequirementsData} from './requirements'
+import {CancellationToken, Command, ProviderResult, Uri, Event, TextDocumentPositionParams} from 'coc.nvim'
+import {ServerMode} from './settings'
 
 export type ProvideHoverCommandFn = (params: TextDocumentPositionParams, token: CancellationToken) => ProviderResult<Command[] | undefined>
 export type RegisterHoverCommand = (callback: ProvideHoverCommandFn) => void
@@ -33,26 +33,26 @@ export type GetProjectSettingsCommand = (uri: string, SettingKeys: string[]) => 
 
 export type GetClasspathsCommand = (uri: string, options: ClasspathQueryOptions) => Promise<ClasspathResult>
 export type ClasspathQueryOptions = {
-  /**
-   * Determines the scope of the classpath. Valid scopes are "runtime" and "test".
-   * If the given scope is not supported, "runtime" will be used.
-   */
-  scope: string
+    /**
+     * Determines the scope of the classpath. Valid scopes are "runtime" and "test".
+     * If the given scope is not supported, "runtime" will be used.
+     */
+    scope: string
 }
 
 export type ClasspathResult = {
-  /**
-   * Uri string of the project root path.
-   */
-  projectRoot: string
-  /**
-   * File path array for the classpaths.
-   */
-  classpaths: string[]
-  /**
-   * File path array for the modulepaths.
-   */
-  modulepaths: string[]
+    /**
+     * Uri string of the project root path.
+     */
+    projectRoot: string
+    /**
+     * File path array for the classpaths.
+     */
+    classpaths: string[]
+    /**
+     * File path array for the modulepaths.
+     */
+    modulepaths: string[]
 }
 
 /**
@@ -64,57 +64,65 @@ export type ClasspathResult = {
 export type IsTestFileCommand = (uri: string) => Promise<boolean>
 
 export enum ClientStatus {
-  uninitialized = "Uninitialized",
-  initialized = "Initialized",
-  starting = "Starting",
-  started = "Started",
-  error = "Error",
-  stopping = "Stopping",
+    uninitialized = "Uninitialized",
+    initialized = "Initialized",
+    starting = "Starting",
+    started = "Started",
+    error = "Error",
+    stopping = "Stopping",
 }
 
-export const extensionApiVersion = '0.7'
+export const extensionApiVersion = '0.8'
 
 export interface ExtensionAPI {
-  readonly apiVersion: string
-  readonly javaRequirement: RequirementsData
-  status: ClientStatus
-  readonly registerHoverCommand: RegisterHoverCommand
-  readonly getDocumentSymbols: GetDocumentSymbolsCommand
-  readonly getProjectSettings: GetProjectSettingsCommand
-  readonly getClasspaths: GetClasspathsCommand
-  readonly isTestFile: IsTestFileCommand
-  /**
-   * An event which fires on classpath update. This API is not supported in light weight server mode so far.
-   *
-   * Note:
-   *   1. This event will fire when the project's configuration file (e.g. pom.xml for Maven) get changed,
-   *      but the classpaths might still be the same as before.
-   *   2. The Uri points to the project root path.
-   */
-  readonly onDidClasspathUpdate: Event<Uri>
-  /**
-   * An event fires on projects imported. This API is not supported in light weight server mode so far.
-   * The Uris in the array point to the project root path.
-   */
-  readonly onDidProjectsImport: Event<Uri[]>
-  readonly goToDefinition: GoToDefinitionCommand
-  /**
-   * Indicates the current active mode for Java Language Server. Possible modes are:
-   * - "Standard"
-   * - "Hybrid"
-   * - "LightWeight"
-   */
-  serverMode: ServerMode
-  /**
-   * An event which fires when the server mode has been switched.
-   */
-  readonly onDidServerModeChange: Event<ServerMode>
+    readonly apiVersion: string
+    readonly javaRequirement: RequirementsData
+    status: ClientStatus
+    readonly registerHoverCommand: RegisterHoverCommand
+    readonly getDocumentSymbols: GetDocumentSymbolsCommand
+    readonly getProjectSettings: GetProjectSettingsCommand
+    readonly getClasspaths: GetClasspathsCommand
+    readonly isTestFile: IsTestFileCommand
+    /**
+     * An event which fires on classpath update. This API is not supported in light weight server mode so far.
+     *
+     * Note:
+     *   1. This event will fire when the project's configuration file (e.g. pom.xml for Maven) get changed,
+     *      but the classpaths might still be the same as before.
+     *   2. The Uri points to the project root path.
+     */
+    readonly onDidClasspathUpdate: Event<Uri>
+    /**
+     * An event fires on projects imported. This API is not supported in light weight server mode so far.
+     * The Uris in the array point to the project root path.
+     */
+    readonly onDidProjectsImport: Event<Uri[]>
+    /**
+     * An event fires on projects deleted. This API is not supported in light weight server mode so far.
+     * The Uris in the array point to the project root path.
+     *
+     * @since API version 0.13
+     * @since extension version 1.25.0
+    */
+    readonly onDidProjectsDelete: Event<Uri[]>;
+    readonly goToDefinition: GoToDefinitionCommand
+    /**
+     * Indicates the current active mode for Java Language Server. Possible modes are:
+     * - "Standard"
+     * - "Hybrid"
+     * - "LightWeight"
+     */
+    serverMode: ServerMode
+    /**
+     * An event which fires when the server mode has been switched.
+     */
+    readonly onDidServerModeChange: Event<ServerMode>
 
-  /**
-   * A promise that will be resolved when the standard language server is ready.
-   * Note: The server here denotes for the standard server, not the lightweight.
-   * @since API version 0.7
-   * @since extension version 1.7.0
-   */
-  readonly serverReady: () => Promise<boolean>
+    /**
+     * A promise that will be resolved when the standard language server is ready.
+     * Note: The server here denotes for the standard server, not the lightweight.
+     * @since API version 0.7
+     * @since extension version 1.7.0
+     */
+    readonly serverReady: () => Promise<boolean>
 }

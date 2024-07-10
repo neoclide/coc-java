@@ -1,9 +1,9 @@
 'use strict'
 
-import { Buffer, FormattingOptions, LanguageClient, Window, nvim, workspace } from "coc.nvim"
-import { CodeActionParams } from 'vscode-languageserver-protocol'
-import { GetRefactorEditRequest, RefactorWorkspaceEdit } from "../protocol"
-import { applyRefactorEdit } from '../standardLanguageClientUtils'
+import {Buffer, FormattingOptions, LanguageClient, Window, nvim, workspace} from "coc.nvim"
+import {CodeActionParams} from 'vscode-languageserver-protocol'
+import {GetRefactorEditRequest, RefactorWorkspaceEdit} from "../protocol"
+import {applyRefactorEdit} from '../standardLanguageClientUtils'
 
 export async function renderChangeSignaturePanel(languageClient: LanguageClient, command: string, params: CodeActionParams, formattingOptions: FormattingOptions, signature: any): Promise<void> {
     const highlightsNamespace: number = await nvim.createNamespace("changeSignatureNamespace")

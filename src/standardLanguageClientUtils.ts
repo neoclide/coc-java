@@ -1,13 +1,13 @@
 'use strict'
 
-import { commands, ConfigurationTarget, LanguageClient, Position, QuickPickItem, Range, Uri, window, workspace } from 'coc.nvim'
+import {commands, ConfigurationTarget, LanguageClient, Position, QuickPickItem, Range, Uri, window, workspace} from 'coc.nvim'
 import * as fse from 'fs-extra'
 import * as path from 'path'
-import { TextDocumentIdentifier } from 'vscode-languageserver-protocol'
-import { Commands } from './commands'
-import { buildFilePatterns } from './plugin'
-import { ProjectConfigurationUpdateRequest, RefactorWorkspaceEdit } from './protocol'
-import { getAllJavaProjects } from './utils'
+import {TextDocumentIdentifier} from 'vscode-languageserver-protocol'
+import {Commands} from './commands'
+import {buildFilePatterns} from './plugin'
+import {ProjectConfigurationUpdateRequest, RefactorWorkspaceEdit} from './protocol'
+import {getAllJavaProjects} from './utils'
 
 interface QuickPickItemWithDetail extends QuickPickItem {
     detail: string
@@ -70,7 +70,7 @@ export async function projectConfigurationUpdate(languageClient: LanguageClient,
     } else if (resources.length > 1) {
         languageClient.sendNotification(ProjectConfigurationUpdateRequest.typeV2, {
             identifiers: resources.map(r => {
-                return { uri: r.toString() }
+                return {uri: r.toString()}
             }),
         })
     }

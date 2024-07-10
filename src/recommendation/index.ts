@@ -2,11 +2,11 @@
 
 'use strict'
 
-import { ExtensionContext } from 'coc.nvim'
-import { HandlerImpl } from './handlerImpl'
-import { initialize as initDependencyAnalytics } from './dependencyAnalytics'
+import {ExtensionContext} from 'coc.nvim'
+import {HandlerImpl} from './handlerImpl'
+import {initialize as initDependencyAnalytics} from './dependencyAnalytics'
 
 export function initialize(context: ExtensionContext) {
-  const handler = new HandlerImpl(context)
-  initDependencyAnalytics(context, handler)
+    const handler = new HandlerImpl(context)
+    initDependencyAnalytics(context, handler)
 }
