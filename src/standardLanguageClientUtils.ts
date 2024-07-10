@@ -6,54 +6,81 @@ import * as path from 'path'
 import { TextDocumentIdentifier } from 'vscode-languageserver-protocol'
 import { Commands } from './commands'
 import { buildFilePatterns } from './plugin'
-import { ProjectConfigurationUpdateRequest } from './protocol'
+import { ProjectConfigurationUpdateRequest, RefactorWorkspaceEdit } from './protocol'
 import { getAllJavaProjects } from './utils'
 
 interface QuickPickItemWithDetail extends QuickPickItem {
-  detail: string
+    detail: string
+}
+
+export async function applyRefactorEdit(languageClient: LanguageClient, refactorEdit: RefactorWorkspaceEdit) {
+    if (!refactorEdit) {
+        return
+    }
+
+    if (refactorEdit.errorMessage) {
+        window.showErrorMessage(refactorEdit.errorMessage)
+        return
+    }
+
+    if (refactorEdit.edit) {
+        const edit = refactorEdit.edit
+        if (edit) {
+            await workspace.applyEdit(edit)
+        }
+    }
+
+    if (refactorEdit.command) {
+        await new Promise(resolve => setTimeout(resolve, 400))
+        if (refactorEdit.command.arguments) {
+            await commands.executeCommand(refactorEdit.command.command, ...refactorEdit.command.arguments)
+        } else {
+            await commands.executeCommand(refactorEdit.command.command)
+        }
+    }
 }
 
 export async function projectConfigurationUpdate(languageClient: LanguageClient, uris?: TextDocumentIdentifier | Uri | Uri[]) {
-  let resources: Uri[] = []
-  if (!uris) {
-    const uri: string | undefined = window.activeTextEditor?.document.uri
-    const activeFileUri: Uri | undefined = uri ? Uri.parse(uri) : undefined
+    let resources: Uri[] = []
+    if (!uris) {
+        const uri: string | undefined = window.activeTextEditor?.document.uri
+        const activeFileUri: Uri | undefined = uri ? Uri.parse(uri) : undefined
 
-    if (activeFileUri && isJavaConfigFile(activeFileUri.fsPath)) {
-      resources = [activeFileUri]
-    } else {
-      resources = await askForProjects(activeFileUri, "Please select the project(s) to update.")
+        if (activeFileUri && isJavaConfigFile(activeFileUri.fsPath)) {
+            resources = [activeFileUri]
+        } else {
+            resources = await askForProjects(activeFileUri, "Please select the project(s) to update.")
+        }
+    } else if (uris instanceof Uri) {
+        resources.push(uris)
+    } else if (Array.isArray(uris)) {
+        for (const uri of uris) {
+            if (uri instanceof Uri) {
+                resources.push(uri)
+            }
+        }
+    } else if ("uri" in uris) {
+        resources.push(Uri.parse(uris.uri))
     }
-  } else if (uris instanceof Uri) {
-    resources.push(uris)
-  } else if (Array.isArray(uris)) {
-    for (const uri of uris) {
-      if (uri instanceof Uri) {
-        resources.push(uri)
-      }
-    }
-  } else if ("uri" in uris) {
-    resources.push(Uri.parse(uris.uri))
-  }
 
-  if (resources.length === 1) {
-    languageClient.sendNotification(ProjectConfigurationUpdateRequest.type, {
-      uri: resources[0].toString(),
-    })
-  } else if (resources.length > 1) {
-    languageClient.sendNotification(ProjectConfigurationUpdateRequest.typeV2, {
-      identifiers: resources.map(r => {
-        return { uri: r.toString() }
-      }),
-    })
-  }
+    if (resources.length === 1) {
+        languageClient.sendNotification(ProjectConfigurationUpdateRequest.type, {
+            uri: resources[0].toString(),
+        })
+    } else if (resources.length > 1) {
+        languageClient.sendNotification(ProjectConfigurationUpdateRequest.typeV2, {
+            identifiers: resources.map(r => {
+                return { uri: r.toString() }
+            }),
+        })
+    }
 }
 
 function isJavaConfigFile(filePath: string): boolean {
-  const fileName = path.basename(filePath)
-  if (buildFilePatterns.length == 0) return false
-  const regEx = new RegExp(buildFilePatterns.map(r => `(${r})`).join('|'), 'i')
-  return regEx.test(fileName)
+    const fileName = path.basename(filePath)
+    if (buildFilePatterns.length == 0) return false
+    const regEx = new RegExp(buildFilePatterns.map(r => `(${r})`).join('|'), 'i')
+    return regEx.test(fileName)
 }
 
 /**
@@ -62,28 +89,28 @@ function isJavaConfigFile(filePath: string): boolean {
  * @param placeHolder message to be shown in quick pick.
  */
 export async function askForProjects(activeFileUri: Uri | undefined, placeHolder: string, canPickMany: boolean = true): Promise<Uri[]> {
-  const projectPicks = await generateProjectPicks(activeFileUri)
-  if (!projectPicks?.length) {
-    return []
-  } else if (projectPicks.length === 1) {
-    return [Uri.file(projectPicks[0].detail)]
-  }
+    const projectPicks = await generateProjectPicks(activeFileUri)
+    if (!projectPicks?.length) {
+        return []
+    } else if (projectPicks.length === 1) {
+        return [Uri.file(projectPicks[0].detail)]
+    }
 
-  const choices = await window.showQuickPick(projectPicks, {
-    matchOnDescription: true,
-    placeholder: placeHolder,
-    canPickMany: canPickMany,
-  })
+    const choices = await window.showQuickPick(projectPicks, {
+        matchOnDescription: true,
+        placeholder: placeHolder,
+        canPickMany: canPickMany,
+    })
 
-  if (!choices) {
-    return []
-  }
+    if (!choices) {
+        return []
+    }
 
-  if (Array.isArray(choices)) {
-    return choices.map(c => Uri.file(c.detail))
-  }
+    if (Array.isArray(choices)) {
+        return choices.map(c => Uri.file(c.detail))
+    }
 
-  return [Uri.file(choices.detail)]
+    return [Uri.file(choices.detail)]
 }
 
 /**
@@ -92,65 +119,65 @@ export async function askForProjects(activeFileUri: Uri | undefined, placeHolder
  * @param activeFileUri the uri of the active document.
  */
 async function generateProjectPicks(activeFileUri: Uri | undefined): Promise<QuickPickItemWithDetail[] | undefined> {
-  let projectUriStrings: string[]
-  try {
-    projectUriStrings = await getAllJavaProjects()
-  } catch (e) {
-    return undefined
-  }
-
-  const projectPicks: QuickPickItemWithDetail[] = projectUriStrings.map(uriString => {
-    const projectPath = Uri.parse(uriString).fsPath
-    return {
-      label: path.basename(projectPath),
-      detail: projectPath,
+    let projectUriStrings: string[]
+    try {
+        projectUriStrings = await getAllJavaProjects()
+    } catch (e) {
+        return undefined
     }
-  }).filter(Boolean)
 
-  // pre-select an active project based on the uri candidate.
-  if (activeFileUri?.scheme === "file") {
-    const candidatePath = activeFileUri.fsPath
-    let belongingIndex = -1
-    for (let i = 0; i < projectPicks.length; i++) {
-      if (candidatePath.startsWith(projectPicks[i].detail)) {
-        if (belongingIndex < 0
-          || projectPicks[i].detail.length > projectPicks[belongingIndex].detail.length) {
-          belongingIndex = i
+    const projectPicks: QuickPickItemWithDetail[] = projectUriStrings.map(uriString => {
+        const projectPath = Uri.parse(uriString).fsPath
+        return {
+            label: path.basename(projectPath),
+            detail: projectPath,
         }
-      }
-    }
-    if (belongingIndex >= 0) {
-      projectPicks[belongingIndex].picked = true
-    }
-  }
+    }).filter(Boolean)
 
-  return projectPicks
+    // pre-select an active project based on the uri candidate.
+    if (activeFileUri?.scheme === "file") {
+        const candidatePath = activeFileUri.fsPath
+        let belongingIndex = -1
+        for (let i = 0; i < projectPicks.length; i++) {
+            if (candidatePath.startsWith(projectPicks[i].detail)) {
+                if (belongingIndex < 0
+                    || projectPicks[i].detail.length > projectPicks[belongingIndex].detail.length) {
+                    belongingIndex = i
+                }
+            }
+        }
+        if (belongingIndex >= 0) {
+            projectPicks[belongingIndex].picked = true
+        }
+    }
+
+    return projectPicks
 }
 
 export async function upgradeGradle(projectUri: string, version?: string): Promise<void> {
-  const useWrapper = workspace.getConfiguration().get<boolean>("java.import.gradle.wrapper.enabled")
-  if (!useWrapper) {
-    await workspace.getConfiguration().update("java.import.gradle.wrapper.enabled", true, ConfigurationTarget.Workspace)
-  }
-  const result = await window.withProgress({
-    title: "Upgrading Gradle wrapper...",
-    cancellable: true,
-  }, (_progress, token) => {
-    return commands.executeCommand<string>(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.UPGRADE_GRADLE_WRAPPER, projectUri, version, token);
-  })
-  if (result) {
-    // const propertiesFile = path.join(Uri.parse(projectUri).fsPath, "gradle", "wrapper", "gradle-wrapper.properties")
-    if (fse.pathExists(result)) {
-      const content = await fse.readFile(result)
-      const offset = content.toString().indexOf("distributionUrl")
-      if (offset >= 0) {
-        const document = await workspace.openTextDocument(result)
-        const position = document.textDocument.positionAt(offset)
-        const distributionUrlRange = document.getWordRangeAtPosition(position)
-        await workspace.jumpTo(document.uri)
-        await window.selectRange(Range.create(distributionUrlRange.start, Position.create(distributionUrlRange.start.line + 1, 0)))
-      }
+    const useWrapper = workspace.getConfiguration().get<boolean>("java.import.gradle.wrapper.enabled")
+    if (!useWrapper) {
+        await workspace.getConfiguration().update("java.import.gradle.wrapper.enabled", true, ConfigurationTarget.Workspace)
     }
-    commands.executeCommand(Commands.IMPORT_PROJECTS_CMD)
-  }
+    const result = await window.withProgress({
+        title: "Upgrading Gradle wrapper...",
+        cancellable: true,
+    }, (_progress, token) => {
+        return commands.executeCommand<string>(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.UPGRADE_GRADLE_WRAPPER, projectUri, version, token)
+    })
+    if (result) {
+        // const propertiesFile = path.join(Uri.parse(projectUri).fsPath, "gradle", "wrapper", "gradle-wrapper.properties")
+        if (fse.pathExists(result)) {
+            const content = await fse.readFile(result)
+            const offset = content.toString().indexOf("distributionUrl")
+            if (offset >= 0) {
+                const document = await workspace.openTextDocument(result)
+                const position = document.textDocument.positionAt(offset)
+                const distributionUrlRange = document.getWordRangeAtPosition(position)
+                await workspace.jumpTo(document.uri)
+                await window.selectRange(Range.create(distributionUrlRange.start, Position.create(distributionUrlRange.start.line + 1, 0)))
+            }
+        }
+        commands.executeCommand(Commands.IMPORT_PROJECTS_CMD)
+    }
 }
