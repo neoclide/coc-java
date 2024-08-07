@@ -20,7 +20,7 @@ export function registerCommands(languageClient: LanguageClient, context: Extens
 function registerOverrideMethodsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.OVERRIDE_METHODS_PROMPT, async (params: CodeActionParams) => {
     const result = await languageClient.sendRequest(ListOverridableMethodsRequest.type, params)
-    if (!result || !result.methods || !result.methods.length) {
+    if (!result?.methods?.length) {
       window.showWarningMessage('No overridable methods found in the super type.')
       return
     }
@@ -52,7 +52,7 @@ function registerOverrideMethodsCommand(languageClient: LanguageClient, context:
       canPickMany: true,
       placeholder: `Select methods to override or implement in ${result.type}`
     })
-    if (!selectedItems || !selectedItems.length) {
+    if (!selectedItems?.length) {
       return
     }
 
@@ -77,26 +77,25 @@ function registerCleanupCommand(languageClient: LanguageClient, context: Extensi
 function registerHashCodeEqualsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.HASHCODE_EQUALS_PROMPT, async (params: CodeActionParams) => {
     const result = await languageClient.sendRequest(CheckHashCodeEqualsStatusRequest.type, params)
-    if (!result || !result.fields || !result.fields.length) {
+    if (!result?.fields?.length) {
       window.showErrorMessage(`The operation is not applicable to the type ${result.type}.`)
       return
     }
 
     let regenerate = false
-    if (result.existingMethods && result.existingMethods.length) {
+    if (result?.existingMethods?.length) {
       const ans = await window.showInformationMessage(`Methods ${result.existingMethods.join(' and ')} already ${result.existingMethods.length === 1 ? 'exists' : 'exist'} in the Class '${result.type}'. `
         + 'Do you want to regenerate the implementation?', 'Regenerate', 'Cancel')
       if (ans !== 'Regenerate') {
         return
       }
-
       regenerate = true
     }
 
     const fieldItems = result.fields.map((field) => {
       return {
         label: `${field.name}: ${field.type}`,
-        picked: true,
+        picked: field.isSelected || field.isField,
         originalField: field
       }
     })
@@ -104,7 +103,7 @@ function registerHashCodeEqualsCommand(languageClient: LanguageClient, context: 
       canPickMany: true,
       placeholder: 'Select the fields to include in the hashCode() and equals() methods.'
     })
-    if (!selectedFields || !selectedFields.length) {
+    if (!selectedFields?.length) {
       return
     }
 
@@ -129,8 +128,8 @@ function registerChooseImportCommand(context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.CHOOSE_IMPORTS, async (uri: string, selections: ImportSelection[], restoreExistingImports?: boolean) => {
     const chosen: ImportCandidate[] = []
     const fileUri: Uri = Uri.parse(uri)
-    for (let i = 0; i < selections.length; i++) {
-      const selection: ImportSelection = selections[i]
+    for (const element of selections) {
+      const selection: ImportSelection = element
       await workspace.jumpTo(fileUri, selection.range.start)
       await window.selectRange(selection.range)
       // Move the cursor to the code line with ambiguous import choices.
@@ -195,11 +194,11 @@ function registerGenerateToStringCommand(languageClient: LanguageClient, context
     }
 
     let fields: VariableBinding[] = []
-    if (result.fields && result.fields.length) {
+    if (result?.fields?.length) {
       const fieldItems = result.fields.map((field) => {
         return {
           label: `${field.name}: ${field.type}`,
-          picked: true,
+          picked: field.isSelected || field.isField,
           originalField: field
         }
       })
@@ -210,7 +209,6 @@ function registerGenerateToStringCommand(languageClient: LanguageClient, context
       if (!selectedFields) {
         return
       }
-
       fields = selectedFields.map((item) => item.originalField)
     }
 
@@ -231,7 +229,7 @@ function registerGenerateAccessorsCommand(languageClient: LanguageClient, contex
 
 async function generateAccessors(languageClient: LanguageClient, params: AccessorCodeActionParams): Promise<void> {
   const accessors = await languageClient.sendRequest(AccessorCodeActionRequest.type, params)
-  if (!accessors || !accessors.length) {
+  if (!accessors?.length) {
     return
   }
 
@@ -247,6 +245,7 @@ async function generateAccessors(languageClient: LanguageClient, params: Accesso
       label: `${accessor.fieldName}: ${accessor.typeName}`,
       description: (accessor.isStatic ? 'static ' : '') + description.join(', '),
       originalField: accessor,
+      picked: true,
     }
   })
   let accessorsKind: string
@@ -267,7 +266,7 @@ async function generateAccessors(languageClient: LanguageClient, params: Accesso
     canPickMany: true,
     placeholder: `Select the fields to generate ${accessorsKind}`
   })
-  if (!selectedAccessors || !selectedAccessors.length) {
+  if (!selectedAccessors?.length) {
     return
   }
 
@@ -282,7 +281,7 @@ async function generateAccessors(languageClient: LanguageClient, params: Accesso
 function registerGenerateConstructorsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.GENERATE_CONSTRUCTORS_PROMPT, async (params: CodeActionParams) => {
     const status = await languageClient.sendRequest(CheckConstructorStatusRequest.type, params)
-    if (!status || !status.constructors || !status.constructors.length) {
+    if (!status?.constructors?.length) {
       return
     }
 
@@ -299,7 +298,7 @@ function registerGenerateConstructorsCommand(languageClient: LanguageClient, con
         canPickMany: true,
         placeholder: 'Select super class constructor(s).',
       })
-      if (!selectedConstructorItems || !selectedConstructorItems.length) {
+      if (!selectedConstructorItems?.length) {
         return
       }
 
@@ -310,8 +309,8 @@ function registerGenerateConstructorsCommand(languageClient: LanguageClient, con
       const fieldItems = status.fields.map((field) => {
         return {
           label: `${field.name}: ${field.type}`,
+          picked: field.isSelected || field.isField,
           originalField: field,
-          picked: field.isSelected
         }
       })
       const selectedFieldItems = await window.showQuickPick(fieldItems, {
@@ -337,7 +336,7 @@ function registerGenerateConstructorsCommand(languageClient: LanguageClient, con
 function registerGenerateDelegateMethodsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.GENERATE_DELEGATE_METHODS_PROMPT, async (params: CodeActionParams) => {
     const status = await languageClient.sendRequest(CheckDelegateMethodsStatusRequest.type, params)
-    if (!status || !status.delegateFields || !status.delegateFields.length) {
+    if (!status?.delegateFields?.length) {
       window.showWarningMessage("All delegatable methods are already implemented.")
       return
     }
@@ -377,7 +376,7 @@ function registerGenerateDelegateMethodsCommand(languageClient: LanguageClient, 
       canPickMany: true,
       placeholder: 'Select methods to generate delegates for.',
     })
-    if (!selectedDelegateEntryItems || !selectedDelegateEntryItems.length) {
+    if (!selectedDelegateEntryItems?.length) {
       return
     }
 
