@@ -1,6 +1,6 @@
 {
     "name": "coc-java-dev",
-    "version": "1.15.8",
+    "version": "1.15.9",
     "description": "Java language extension for coc.nvim",
     "main": "lib/index.js",
     "publisher": "chemzqm",
@@ -950,28 +950,31 @@
                     "scope": "window"
                 },
                 "java.cleanup.actions": {
-                    "type": "array",
-                    "markdownDescription": "The list of clean ups to be run on the current document when it's saved or when the cleanup command is issued. Clean ups can automatically fix code style or programming mistakes.",
-                    "items": {
-                        "type": "string",
-                        "enum": [
-                            "qualifyMembers",
-                            "qualifyStaticMembers",
-                            "addOverride",
-                            "addDeprecated",
-                            "stringConcatToTextBlock",
-                            "invertEquals",
-                            "addFinalModifier",
-                            "instanceofPatternMatch",
-                            "lambdaExpressionFromAnonymousClass",
-                            "lambdaExpression",
-                            "switchExpression",
-                            "tryWithResource"
-                        ]
-                    },
-                    "default": [ ],
-                    "scope": "window",
-                    "order": 10
+                  "default": [
+                    "renameFileToType"
+                  ],
+                  "items": {
+                    "enum": [
+                      "qualifyMembers",
+                      "qualifyStaticMembers",
+                      "addOverride",
+                      "addDeprecated",
+                      "stringConcatToTextBlock",
+                      "invertEquals",
+                      "addFinalModifier",
+                      "instanceofPatternMatch",
+                      "lambdaExpressionFromAnonymousClass",
+                      "lambdaExpression",
+                      "switchExpression",
+                      "tryWithResource",
+                      "renameFileToType"
+                    ],
+                    "type": "string"
+                  },
+                  "markdownDescription": "The list of clean ups to be run on the current document when it's saved or when the cleanup command is issued. Clean ups can automatically fix code style or programming mistakes. Click [HERE](command:_java.learnMoreAboutCleanUps) to learn more about what each clean up does.",
+                  "order": 10,
+                  "scope": "window",
+                  "type": "array"
                 },
                 "java.cleanup.actionsOnSave": {
                     "type": "array",

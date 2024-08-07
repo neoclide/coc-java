@@ -70,6 +70,7 @@ function registerCleanupCommand(languageClient: LanguageClient, context: Extensi
     const textDocument: TextDocumentIdentifier = TextDocumentIdentifier.create(window.activeTextEditor.document.uri)
     const workspaceEdit = await languageClient.sendRequest(CleanupRequest.type, textDocument)
     await workspace.applyEdit(workspaceEdit)
+    window.showWarningMessage("Applied cleanup, :w to save changes")
   }))
 }
 

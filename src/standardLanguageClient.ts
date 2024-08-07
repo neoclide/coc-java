@@ -682,7 +682,9 @@ async function showCompileBuildDiagnostics() {
   const filesDiagnostics = errorDiagnostics.filter(item => isFileDiagnostic(item))
   const quickFixList = await workspace.getQuickfixList(filesDiagnostics.map(item => item.location))
 
-  await nvim.call('setqflist', [quickFixList])
+  const quickListConfig: any = { title: `[JDTLS] Compile & Build project [${formatDate(new Date())}]`, items: quickFixList }
+  await nvim.call('setqflist', [[], " ", quickListConfig])
+
   let openCommand = await nvim.getVar('coc_quickfix_open_command') as string
   nvim.command(typeof openCommand === 'string' ? openCommand : 'copen', true)
 }
@@ -753,6 +755,25 @@ function isParentFolder(folder: string, filepath: string): boolean {
   let pdir = normalizeFilePath(folder)
   let dir = normalizeFilePath(filepath)
   return fileStartsWith(dir, pdir) && dir[pdir.length] == path.sep
+}
+
+function formatDate(date: Date): string {
+    // Weekday names
+    const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    // Month names
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    // Extract components
+    const dayOfWeek = weekdays[date.getDay()];
+    const month = months[date.getMonth()];
+    const dayOfMonth = date.getDate();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    const year = date.getFullYear();
+
+    // Format the date string
+    return `${dayOfWeek} ${month} ${dayOfMonth} ${hours}:${minutes}:${seconds} ${year}`;
 }
 
 export function showNoLocationFound(message: string): void {
