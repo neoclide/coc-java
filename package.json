@@ -1,6 +1,6 @@
 {
     "name": "coc-java-dev",
-    "version": "1.16.0",
+    "version": "1.25.0",
     "description": "Java language extension for coc.nvim",
     "main": "lib/index.js",
     "publisher": "chemzqm",
@@ -103,7 +103,7 @@
                 },
                 "java.jdt.ls.bundles": {
                     "type": "array",
-                    "default": [ ],
+                    "default": [],
                     "scope": "window",
                     "description": "Additional bundles to load when starting jdt.ls, e.g. those from vscode-java-debug, vscode-java-test, etc."
                 },
@@ -396,7 +396,7 @@
                         "type": "string"
                     },
                     "markdownDescription": "Relative paths to the workspace where stores the source files. `Only` effective in the `WORKSPACE` scope. The setting will `NOT` affect Maven or Gradle project.",
-                    "default": [ ],
+                    "default": [],
                     "scope": "window"
                 },
                 "java.contentProvider.preferred": {
@@ -653,7 +653,7 @@
                     "description": "Map Java Execution Environments to local JDKs.",
                     "items": {
                         "type": "object",
-                        "default": { },
+                        "default": {},
                         "required": [
                             "path",
                             "name"
@@ -702,7 +702,7 @@
                         },
                         "additionalProperties": false
                     },
-                    "default": [ ],
+                    "default": [],
                     "scope": "machine-overridable"
                 },
                 "java.server.launchMode": {
@@ -739,7 +739,7 @@
                     "type": "array",
                     "items": {
                         "type": "object",
-                        "default": { },
+                        "default": {},
                         "required": [
                             "sha256"
                         ],
@@ -758,7 +758,7 @@
                         "uniqueItems": true
                     },
                     "description": "Defines allowed/disallowed SHA-256 checksums of Gradle Wrappers",
-                    "default": [ ],
+                    "default": [],
                     "scope": "application"
                 },
                 "java.project.importOnFirstTimeStartup": {
@@ -791,13 +791,13 @@
                     "type": "array",
                     "markdownDescription": "Specifies the file header comment for new Java file. Supports configuring multi-line comments with an array of strings, and using ${variable} to reference the [predefined variables](command:_java.templateVariables).",
                     "scope": "window",
-                    "default": [ ]
+                    "default": []
                 },
                 "java.templates.typeComment": {
                     "type": "array",
                     "markdownDescription": "Specifies the type comment for new Java type. Supports configuring multi-line comments with an array of strings, and using ${variable} to reference the [predefined variables](command:_java.templateVariables).",
                     "scope": "window",
-                    "default": [ ]
+                    "default": []
                 },
                 "java.references.includeAccessors": {
                     "type": "boolean",
@@ -860,7 +860,7 @@
                     "items": {
                         "type": "string"
                     },
-                    "default": [ ],
+                    "default": [],
                     "markdownDescription": "The patterns for the methods that will be disabled to show the inlay hints. Supported pattern examples:\n - `java.lang.Math.*` - All the methods from java.lang.Math.\n - `*.Arrays.asList` - Methods named as 'asList' in the types named as 'Arrays'.\n - `*.println(*)` - Methods named as 'println'.\n - `(from, to)` - Methods with two parameters named as 'from' and 'to'.\n - `(arg*)` - Methods with one parameter whose name starts with 'arg'.",
                     "scope": "window"
                 },
@@ -950,31 +950,31 @@
                     "scope": "window"
                 },
                 "java.cleanup.actions": {
-                  "default": [
-                    "renameFileToType"
-                  ],
-                  "items": {
-                    "enum": [
-                      "qualifyMembers",
-                      "qualifyStaticMembers",
-                      "addOverride",
-                      "addDeprecated",
-                      "stringConcatToTextBlock",
-                      "invertEquals",
-                      "addFinalModifier",
-                      "instanceofPatternMatch",
-                      "lambdaExpressionFromAnonymousClass",
-                      "lambdaExpression",
-                      "switchExpression",
-                      "tryWithResource",
-                      "renameFileToType"
+                    "default": [
+                        "renameFileToType"
                     ],
-                    "type": "string"
-                  },
-                  "markdownDescription": "The list of clean ups to be run on the current document when it's saved or when the cleanup command is issued. Clean ups can automatically fix code style or programming mistakes. Click [HERE](command:_java.learnMoreAboutCleanUps) to learn more about what each clean up does.",
-                  "order": 10,
-                  "scope": "window",
-                  "type": "array"
+                    "items": {
+                        "enum": [
+                            "qualifyMembers",
+                            "qualifyStaticMembers",
+                            "addOverride",
+                            "addDeprecated",
+                            "stringConcatToTextBlock",
+                            "invertEquals",
+                            "addFinalModifier",
+                            "instanceofPatternMatch",
+                            "lambdaExpressionFromAnonymousClass",
+                            "lambdaExpression",
+                            "switchExpression",
+                            "tryWithResource",
+                            "renameFileToType"
+                        ],
+                        "type": "string"
+                    },
+                    "markdownDescription": "The list of clean ups to be run on the current document when it's saved or when the cleanup command is issued. Clean ups can automatically fix code style or programming mistakes. Click [HERE](command:_java.learnMoreAboutCleanUps) to learn more about what each clean up does.",
+                    "order": 10,
+                    "scope": "window",
+                    "type": "array"
                 },
                 "java.cleanup.actionsOnSave": {
                     "type": "array",
@@ -996,7 +996,7 @@
                             "tryWithResource"
                         ]
                     },
-                    "default": [ ],
+                    "default": [],
                     "scope": "window"
                 },
                 "java.saveActions.cleanup": {
@@ -1173,22 +1173,12 @@
     "author": "chemzqm@gmail.com",
     "license": "EPL-1.0",
     "devDependencies": {
-        "@types/fs-extra": "^8.0.0",
-        "@types/glob": "5.0.30",
-        "@types/semver": "^7.3.8",
-        "@types/winreg": "^1.2.30",
-        "@types/node": "^14.14",
-        "@types/marked": "^4.0.1",
-        "@types/uuid": "^8.3.0",
-        "typescript": "^4.9.4",
-        "coc.nvim": "^0.0.83-next.17",
         "vscode-languageserver-protocol": "^3.17.2",
+        "coc.nvim": "^0.0.83-next.18",
         "esbuild": "^0.15.13",
         "uuid": "^7.0.3",
         "marked": "^4.0.12",
         "expand-home-dir": "^0.0.3",
-        "lodash.findindex": "^4.6.0",
-        "lodash.template": ">=4.5.0",
         "fmtr": "^1.1.2",
         "fs-extra": "^8.1.0",
         "glob": "^7.1.3",
@@ -1196,6 +1186,8 @@
         "semver": "^7.3.5"
     },
     "dependencies": {
-        "chokidar": "^3.5.3"
+        "chokidar": "^3.5.3",
+        "lodash.findindex": "^4.6.0",
+        "lodash.template": ">=4.5.0"
     }
 }

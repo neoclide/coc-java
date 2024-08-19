@@ -7,7 +7,7 @@ import { CodeActionParams } from 'vscode-languageserver-protocol'
 import { Commands as javaCommands } from './commands'
 import { GetMoveDestinationsRequest, GetRefactorEditRequest, InferSelectionRequest, MoveRequest, RefactorWorkspaceEdit, RenamePosition, SearchSymbols, SelectionInfo } from './protocol'
 import { getExtractInterfaceArguments, revealExtractedInterface } from './refactoring/extractInterface'
-import { renderChangeSignaturePanel } from 'coc-java-dev/src/refactoring/changeSignature'
+import { renderChangeSignaturePanel } from './refactoring/changeSignature'
 import { applyRefactorEdit } from './standardLanguageClientUtils'
 
 export function registerCommands(languageClient: LanguageClient, context: ExtensionContext) {
