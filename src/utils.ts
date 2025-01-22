@@ -4,6 +4,8 @@ import { commands, Position, Range, Uri, workspace, WorkspaceConfiguration } fro
 import * as fs from 'fs'
 import * as path from 'path'
 import { Commands } from './commands'
+import { findRuntimes, getRuntime, getSources, IJavaRuntime, JAVAC_FILENAME } from 'jdk-utils'
+import { sortJdksByVersion, sortJdksBySource, getSupportedJreNames, listJdks } from './requirements'
 
 export function getJavaConfiguration(): WorkspaceConfiguration {
   return workspace.getConfiguration('java')
@@ -173,16 +175,15 @@ function getDirectoriesByBuildFile(inclusions: string[], exclusions: string[], f
 }
 
 
-export function getJavaConfig(javaHome: string) {
+export function getJavaConfig(javaHome: string): any {
   const origConfig = getJavaConfiguration()
   const javaConfig = JSON.parse(JSON.stringify(origConfig))
+  const editorConfig = workspace.getConfiguration('editor')
   javaConfig.home = javaHome
   // Since source & output path are project specific settings. To avoid pollute other project,
   // we avoid reading the value from the global scope.
   javaConfig.project.outputPath = origConfig.inspect<string>("project.outputPath").workspaceValue
   javaConfig.project.sourcePaths = origConfig.inspect<string[]>("project.sourcePaths").workspaceValue
-
-  const editorConfig = workspace.getConfiguration('editor')
   javaConfig.format.insertSpaces = editorConfig.get('insertSpaces')
   javaConfig.format.tabSize = editorConfig.get('tabSize')
   const isInsider: boolean = false
@@ -206,7 +207,75 @@ export function getJavaConfig(javaHome: string) {
   if (completionCaseMatching === "auto") {
     javaConfig.completion.matchCase = isInsider ? "firstLetter" : "off"
   }
+
+  const javacSupport = javaConfig.jdt.ls.javac.enabled
+  switch (javacSupport) {
+    case "on":
+      javaConfig.jdt.ls.javac.enabled = true
+      break
+    case "off":
+      javaConfig.jdt.ls.javac.enabled = false
+      break
+    default:
+      javaConfig.jdt.ls.javac.enabled = false
+      break
+  }
+
+  if (javaConfig.completion.matchCase === "auto") {
+    javaConfig.completion.matchCase = "firstLetter"
+  }
+
+  const guessMethodArguments = javaConfig.completion.guessMethodArguments
+  if (guessMethodArguments === "auto") {
+    javaConfig.completion.guessMethodArguments = isInsider ? "off" : "insertBestGuessedArguments"
+  }
+
+  if (!isPreferenceOverridden("java.implementationCodeLens") && typeof javaConfig.implementationsCodeLens?.enabled === 'boolean') {
+    const deprecatedImplementations = javaConfig.implementationsCodeLens.enabled
+    javaConfig.implementationCodeLens = deprecatedImplementations ? "types" : "none"
+  }
+
   return javaConfig
+}
+
+export async function addAutoDetectedJdks(configuredJREs: any[]): Promise<any[]> {
+  // search valid JDKs from env.JAVA_HOME, env.PATH, SDKMAN, jEnv, jabba, Common directories
+  const autoDetectedJREs: IJavaRuntime[] = await listJdks()
+  sortJdksByVersion(autoDetectedJREs)
+  sortJdksBySource(autoDetectedJREs)
+  const addedJreNames: Set<string> = new Set<string>()
+  const supportedJreNames: string[] = getSupportedJreNames()
+  for (const jre of configuredJREs) {
+    if (jre.name) {
+      addedJreNames.add(jre.name)
+    }
+  }
+  for (const jre of autoDetectedJREs) {
+    const majorVersion: number = jre.version?.major ?? 0
+    if (!majorVersion) {
+      continue
+    }
+
+    let jreName: string = `JavaSE-${majorVersion}`
+    if (majorVersion <= 5) {
+      jreName = `J2SE-1.${majorVersion}`
+    } else if (majorVersion <= 8) {
+      jreName = `JavaSE-1.${majorVersion}`
+    }
+
+    if (addedJreNames.has(jreName) || !supportedJreNames?.includes(jreName)) {
+      continue
+    }
+
+    configuredJREs.push({
+      name: jreName,
+      path: jre.homedir,
+    })
+
+    addedJreNames.add(jreName)
+  }
+
+  return configuredJREs
 }
 
 export function equals(one: any, other: any): boolean {

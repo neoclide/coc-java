@@ -9,6 +9,10 @@ import { Commands } from './commands'
 import { checkAndDownloadJRE } from './jre'
 import { createLogger } from './log'
 import { checkJavaPreferences } from './settings'
+import { existsSync } from 'fs'
+
+let cachedJdks: IJavaRuntime[]
+let cachedJreNames: string[]
 
 const REQUIRED_JDK_VERSION = 17
 /* eslint-disable @typescript-eslint/naming-convention */
@@ -144,6 +148,23 @@ async function findDefaultRuntimeFromSettings(): Promise<string | undefined> {
   }
 
   return undefined
+}
+
+export function getSupportedJreNames(): string[] {
+  return cachedJreNames
+}
+
+export async function listJdks(force?: boolean): Promise<IJavaRuntime[]> {
+  if (force || !cachedJdks) {
+    cachedJdks = await findRuntimes({ checkJavac: true, withVersion: true, withTags: true })
+      .then(jdks => jdks.filter(jdk => {
+        return existsSync(path.join(jdk.homedir, "lib", "rt.jar"))
+          || existsSync(path.join(jdk.homedir, "jre", "lib", "rt.jar")) // Java 8
+          || existsSync(path.join(jdk.homedir, "lib", "jrt-fs.jar")) // Java 9+
+      }))
+  }
+
+  return [].concat(cachedJdks)
 }
 
 export function sortJdksBySource(jdks: IJavaRuntime[]) {

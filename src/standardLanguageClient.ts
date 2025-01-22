@@ -80,7 +80,7 @@ export class StandardLanguageClient {
       }
     })
 
-    let serverOptions
+    let serverOptions: any
     const port = process.env['SERVER_PORT']
     if (!port) {
       const lsPort = process.env['JDTLS_CLIENT_PORT']
