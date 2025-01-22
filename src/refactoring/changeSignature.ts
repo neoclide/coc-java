@@ -2,7 +2,7 @@
 
 import { Buffer, FormattingOptions, LanguageClient, Window, nvim, workspace } from "coc.nvim"
 import { CodeActionParams } from 'vscode-languageserver-protocol'
-import { GetRefactorEditRequest, RefactorWorkspaceEdit } from "../protocol"
+import { ChangeSignatureInfo, GetRefactorEditRequest, RefactorWorkspaceEdit } from "../protocol"
 import { applyRefactorEdit } from '../standardLanguageClientUtils'
 
 function computeParamValue(type: string, value: any) {
@@ -33,7 +33,7 @@ function readLineUserValue(line: string) {
   return line.substring(index + 1)
 }
 
-export async function renderChangeSignaturePanel(languageClient: LanguageClient, command: string, params: CodeActionParams, formattingOptions: FormattingOptions, signature: any): Promise<void> {
+export async function renderChangeSignaturePanel(languageClient: LanguageClient, command: string, params: CodeActionParams, formattingOptions: FormattingOptions, signature: ChangeSignatureInfo): Promise<void> {
   const highlightsNamespace: number = await nvim.createNamespace("changeSignatureNamespace")
   const buffer: Buffer = await nvim.createNewBuffer(false, true)
 

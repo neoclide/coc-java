@@ -5,9 +5,9 @@ import { existsSync } from 'fs'
 import * as path from 'path'
 import { CodeActionParams } from 'vscode-languageserver-protocol'
 import { Commands as javaCommands } from './commands'
-import { GetMoveDestinationsRequest, GetRefactorEditRequest, InferSelectionRequest, MoveRequest, RefactorWorkspaceEdit, RenamePosition, SearchSymbols, SelectionInfo } from './protocol'
-import { getExtractInterfaceArguments, revealExtractedInterface } from './refactoring/extractInterface'
+import { ChangeSignatureInfo, GetChangeSignatureInfoRequest, GetMoveDestinationsRequest, GetRefactorEditRequest, InferSelectionRequest, MoveRequest, RefactorWorkspaceEdit, RenamePosition, SearchSymbols, SelectionInfo } from './protocol'
 import { renderChangeSignaturePanel } from './refactoring/changeSignature'
+import { getExtractInterfaceArguments, revealExtractedInterface } from './refactoring/extractInterface'
 import { applyRefactorEdit } from './standardLanguageClientUtils'
 
 export function registerCommands(languageClient: LanguageClient, context: ExtensionContext) {
@@ -112,7 +112,12 @@ function registerApplyRefactorCommand(languageClient: LanguageClient, context: E
         }
         commandArguments.push(...args)
       } else if (command === 'changeSignature') {
-        await renderChangeSignaturePanel(languageClient, command, params, formattingOptions, commandInfo)
+        const changeSignatureInfo: ChangeSignatureInfo = await languageClient.sendRequest(GetChangeSignatureInfoRequest.type, params)
+        if (changeSignatureInfo.errorMessage !== undefined) {
+          window.showWarningMessage(changeSignatureInfo.errorMessage)
+          return
+        }
+        await renderChangeSignaturePanel(languageClient, command, params, formattingOptions, changeSignatureInfo)
         return
       }
 
