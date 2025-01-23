@@ -1,35 +1,27 @@
 'use strict'
 
-import { ExtensionContext, Uri, window, workspace } from 'coc.nvim'
+import {ExtensionContext, Uri, window, workspace} from 'coc.nvim'
 import expandHomeDir from 'expand-home-dir'
 import * as fse from 'fs-extra'
-import { findRuntimes, getRuntime, getSources, IJavaRuntime, JAVAC_FILENAME } from 'jdk-utils'
+import {findRuntimes, getRuntime, getSources, IJavaRuntime, JAVAC_FILENAME} from 'jdk-utils'
 import * as path from 'path'
-import { Commands } from './commands'
-import { checkAndDownloadJRE } from './jre'
-import { createLogger } from './log'
-import { checkJavaPreferences } from './settings'
-import { existsSync } from 'fs'
+import {Commands} from './commands'
+import {checkAndDownloadJRE} from './jre'
+import {createLogger} from './log'
+import {checkJavaPreferences} from './settings'
+import {existsSync} from 'fs'
+import {getJavaConfiguration} from './utils';
 
 let cachedJdks: IJavaRuntime[]
 let cachedJreNames: string[]
 
-const REQUIRED_JDK_VERSION = 17
-/* eslint-disable @typescript-eslint/naming-convention */
 export interface RequirementsData {
   tooling_jre: string
   tooling_jre_version: number
   java_home: string
   java_version: number
 }
-/* eslint-enable @typescript-eslint/naming-convention */
 
-interface ErrorData {
-  message: string
-  label: string
-  command: string
-  commandParam: any
-}
 /**
  * Resolves the requirements needed to run the extension.
  * Returns a promise that will resolve to a RequirementsData if
@@ -41,6 +33,7 @@ export async function resolveRequirements(context: ExtensionContext): Promise<Re
   let toolingJre: string = await checkAndDownloadJRE(context)
   let toolingJreVersion: number = await getMajorVersion(toolingJre)
   return new Promise(async (resolve, reject) => {
+    const requiredJdkVersion = ('on' === getJavaConfiguration().get('jdt.ls.javac.enabled')) ? 23 : 17;
     const javaPreferences = await checkJavaPreferences(context)
     const preferenceName = javaPreferences.preference
     let javaHome = javaPreferences.javaHome
@@ -61,25 +54,25 @@ export async function resolveRequirements(context: ExtensionContext): Promise<Re
       }
       javaVersion = await getMajorVersion(javaHome)
       if (preferenceName === "java.jdt.ls.java.home" || !toolingJre) {
-        if (javaVersion >= REQUIRED_JDK_VERSION) {
+        if (javaVersion >= requiredJdkVersion) {
           toolingJre = javaHome
           toolingJreVersion = javaVersion
         } else {
           const neverShow: boolean | undefined = context.workspaceState.get<boolean>("java.home.failsMinRequiredFirstTime")
           if (!neverShow) {
             context.workspaceState.update("java.home.failsMinRequiredFirstTime", true)
-            window.showInformationMessage(`The Java runtime set by 'java.jdt.ls.java.home' does not meet the minimum required version of '${REQUIRED_JDK_VERSION}' and will not be used.`)
+            window.showInformationMessage(`The Java runtime set by 'java.jdt.ls.java.home' does not meet the minimum required version of '${requiredJdkVersion}' and will not be used.`)
           }
         }
       }
     }
 
     // search valid JDKs from env.JAVA_HOME, env.PATH, SDKMAN, jEnv, jabba, Common directories
-    const javaRuntimes = await findRuntimes({ checkJavac: true, withVersion: true, withTags: true })
+    const javaRuntimes = await findRuntimes({checkJavac: true, withVersion: true, withTags: true})
     if (!toolingJre) { // universal version
       // as latest version as possible.
       sortJdksByVersion(javaRuntimes)
-      const validJdks = javaRuntimes.filter(r => r.version.major >= REQUIRED_JDK_VERSION)
+      const validJdks = javaRuntimes.filter(r => r.version.major >= requiredJdkVersion)
       if (validJdks.length > 0) {
         sortJdksBySource(validJdks)
         javaHome = validJdks[0].homedir
@@ -110,8 +103,8 @@ export async function resolveRequirements(context: ExtensionContext): Promise<Re
       }
     }
 
-    if (!toolingJre || toolingJreVersion < REQUIRED_JDK_VERSION) {
-      openJDKDownload(reject, `Java ${REQUIRED_JDK_VERSION} or more recent is required to run the Java extension. Please download and install a recent JDK. You can still compile your projects with older JDKs by configuring ['java.configuration.runtimes'](https://github.com/redhat-developer/vscode-java/wiki/JDK-Requirements#java.configuration.runtimes)`)
+    if (!toolingJre || toolingJreVersion < requiredJdkVersion) {
+      openJDKDownload(reject, `Java ${requiredJdkVersion} or more recent is required to run the Java extension. Please download and install a recent JDK. You can still compile your projects with older JDKs by configuring ['java.configuration.runtimes'](https://github.com/redhat-developer/vscode-java/wiki/JDK-Requirements#java.configuration.runtimes)`)
     }
 
     /* eslint-disable @typescript-eslint/naming-convention */
@@ -156,7 +149,7 @@ export function getSupportedJreNames(): string[] {
 
 export async function listJdks(force?: boolean): Promise<IJavaRuntime[]> {
   if (force || !cachedJdks) {
-    cachedJdks = await findRuntimes({ checkJavac: true, withVersion: true, withTags: true })
+    cachedJdks = await findRuntimes({checkJavac: true, withVersion: true, withTags: true})
       .then(jdks => jdks.filter(jdk => {
         return existsSync(path.join(jdk.homedir, "lib", "rt.jar"))
           || existsSync(path.join(jdk.homedir, "jre", "lib", "rt.jar")) // Java 8
@@ -168,7 +161,7 @@ export async function listJdks(force?: boolean): Promise<IJavaRuntime[]> {
 }
 
 export function sortJdksBySource(jdks: IJavaRuntime[]) {
-  const rankedJdks = jdks as Array<IJavaRuntime & { rank: number }>
+  const rankedJdks = jdks as Array<IJavaRuntime & {rank: number}>
   const sources = ["JDK_HOME", "JAVA_HOME", "PATH"]
   for (const [index, source] of sources.entries()) {
     for (const jdk of rankedJdks) {
@@ -242,6 +235,6 @@ async function getMajorVersion(javaHome: string): Promise<number> {
   if (!javaHome) {
     return 0
   }
-  const runtime = await getRuntime(javaHome, { withVersion: true })
+  const runtime = await getRuntime(javaHome, {withVersion: true})
   return runtime?.version?.major || 0
 }

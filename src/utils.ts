@@ -1,11 +1,11 @@
 'use strict'
 
-import { commands, Position, Range, Uri, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import {commands, Position, Range, Uri, workspace, WorkspaceConfiguration} from 'coc.nvim'
 import * as fs from 'fs'
 import * as path from 'path'
-import { Commands } from './commands'
-import { findRuntimes, getRuntime, getSources, IJavaRuntime, JAVAC_FILENAME } from 'jdk-utils'
-import { sortJdksByVersion, sortJdksBySource, getSupportedJreNames, listJdks } from './requirements'
+import {Commands} from './commands'
+import {IJavaRuntime} from 'jdk-utils'
+import {sortJdksByVersion, sortJdksBySource, getSupportedJreNames, listJdks} from './requirements'
 
 export function getJavaConfiguration(): WorkspaceConfiguration {
   return workspace.getConfiguration('java')
@@ -357,7 +357,7 @@ function rangeInRange(r: Range, range: Range): boolean {
 }
 
 function positionInRange(position: Position, range: Range): number {
-  let { start, end } = range
+  let {start, end} = range
   if (comparePosition(position, start) < 0) return -1
   if (comparePosition(position, end) > 0) return 1
   return 0

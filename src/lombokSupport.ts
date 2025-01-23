@@ -1,19 +1,20 @@
 'use strict'
 
-import { Command, commands, Uri, ExtensionContext, window, workspace } from 'coc.nvim'
+import {Command, commands, Uri, ExtensionContext, window, workspace} from 'coc.nvim'
 import * as fse from 'fs-extra'
 import * as glob from 'glob'
 import * as path from 'path'
 import * as semver from 'semver'
-import { apiManager } from './apiManager'
-import { Commands } from './commands'
-import { createLogger } from './log'
-import { runtimeStatusBarProvider } from './runtimeStatusBarProvider'
-import { getAllJavaProjects } from './utils'
+import {apiManager} from './apiManager'
+import {Commands} from './commands'
+import {createLogger} from './log'
+import {runtimeStatusBarProvider} from './runtimeStatusBarProvider'
+import {getAllJavaProjects} from './utils'
 
 export const JAVA_LOMBOK_PATH = "java.lombokPath"
 
-const lombokJarRegex = /lombok-\d+.*\.jar$/
+const lombokJarRegex = /lombok-?\d?.*\.jar$/
+const unkownVersion = '999.999.999'
 const compatibleVersion = '1.18.0'
 let activeLombokPath: string = undefined
 let isLombokStatusBarInitialized: boolean = false
@@ -43,14 +44,16 @@ export function cleanupLombokCache(context: ExtensionContext) {
 
 function getExtensionLombokPath(): string {
   const lombokHome = path.resolve(__dirname, '../server')
-  const lombokJar: Array<string> = glob.sync('lombok-*.jar', { cwd: lombokHome })
+  const lombokJar: Array<string> = glob.sync('lombok*.jar', {cwd: lombokHome})
 
   if (lombokJar === undefined || lombokJar.length === 0) {
+    window.showWarningMessage(`Lombok missing in extension path`)
     return
   }
 
   const lombokJarPath = `${lombokHome}/${lombokJar[0]}`
   if (!fse.existsSync(lombokJarPath)) {
+    window.showWarningMessage(`Lombok found but not accessible`)
     return
   }
 
@@ -59,8 +62,12 @@ function getExtensionLombokPath(): string {
 
 function lombokPath2Version(lombokPath: string): string {
   if (!lombokPath) return ''
-  const lombokVersion = lombokJarRegex.exec(lombokPath)[0].split('.jar')[0]
-  return lombokVersion
+  const matches = lombokJarRegex.exec(lombokPath)
+  if (matches.length > 0) {
+    return matches[0].split('.jar')[0]
+  }
+  window.showWarningMessage(`Lombok ${lombokPath} jar name mismatch`)
+  return "lombok"
 }
 
 function lombokPath2VersionNumber(lombokPath: string): string {
@@ -69,7 +76,7 @@ function lombokPath2VersionNumber(lombokPath: string): string {
     return lombokVersionTag[1]
   }
   window.showWarningMessage(`Lombok ${lombokPath} missing version tag`)
-  return undefined
+  return unkownVersion
 }
 
 export function getLombokVersion(): string {
@@ -142,13 +149,13 @@ export async function checkLombokDependency(context: ExtensionContext, projectUr
   let currentLombokClasspath: string = undefined
   const projectUris: string[] = projectUri ? [projectUri.toString()] : await getAllJavaProjects()
   for (const projectUri of projectUris) {
-    const classpathResult = await apiManager.getApiInstance().getClasspaths(projectUri, { scope: 'test' })
+    const classpathResult = await apiManager.getApiInstance().getClasspaths(projectUri, {scope: 'test'})
     for (const classpath of classpathResult.classpaths) {
       if (lombokJarRegex.test(classpath)) {
         currentLombokClasspath = classpath
         if (activeLombokPath && !isExtensionLombok) {
-          currentLombokVersion = lombokJarRegex.exec(classpath)[0]
-          previousLombokVersion = lombokJarRegex.exec(activeLombokPath)[0]
+          currentLombokVersion = lombokPath2Version(classpath)
+          previousLombokVersion = lombokPath2Version(activeLombokPath)
           if (currentLombokVersion !== previousLombokVersion) {
             versionChange = true
           }
@@ -227,17 +234,17 @@ export function registerLombokConfigureCommand(context: ExtensionContext) {
       }
     }
     else if (isExtensionLombok) {
-        const projectLombokVersion = lombokPath2VersionNumber(projectLombokPath)
-        if (!isCompatibleLombokVersion(projectLombokVersion)) {
-          const msg = `The project's Lombok version ${projectLombokVersion} is not supported. Falling back to the built-in Lombok version in the extension.`
-          window.showWarningMessage(msg)
-          return
-        }
-        else {
-          shouldReload = true
-          context.workspaceState.update(JAVA_LOMBOK_PATH, projectLombokPath)
-        }
+      const projectLombokVersion = lombokPath2VersionNumber(projectLombokPath)
+      if (!isCompatibleLombokVersion(projectLombokVersion)) {
+        const msg = `The project's Lombok version ${projectLombokVersion} is not supported. Falling back to the built-in Lombok version in the extension.`
+        window.showWarningMessage(msg)
+        return
       }
+      else {
+        shouldReload = true
+        context.workspaceState.update(JAVA_LOMBOK_PATH, projectLombokPath)
+      }
+    }
     if (shouldReload) {
       const msg = `The Lombok version used in Java extension has changed, please reload the window.`
       const action = 'Reload'
