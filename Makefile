@@ -1,3 +1,3 @@
-.PHONY: generate
+.PHONY: update
 update:
 	./scripts/update.sh
