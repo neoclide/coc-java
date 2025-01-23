@@ -4,7 +4,7 @@ echo "Verify gh version"
 gh --version
 
 release_tag=$(gh api "repos/eclipse-jdtls/eclipse.jdt.ls/tags" --jq '.[0].name')
-release_tag=$(echo "$release_tag" | sed 's/^v//')
+release_tag="1.43.0"; # $(echo "$release_tag" | sed 's/^v//')
 
 target_url="https://download.eclipse.org/jdtls/milestones/$release_tag"
 curl -L -o release.txt "$target_url/latest.txt"
