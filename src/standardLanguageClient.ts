@@ -20,7 +20,7 @@ import { checkLombokDependency } from "./lombokSupport"
 import { markdownPreviewProvider } from "./markdownPreviewProvider"
 import { collectBuildFilePattern, onExtensionChange } from "./plugin"
 import { pomCodeActionMetadata, PomCodeActionProvider } from "./pom/pomCodeActionProvider"
-import { ActionableNotification, BuildProjectParams, BuildProjectRequest, CompileWorkspaceRequest, CompileWorkspaceStatus, EventNotification, EventType, ExecuteClientCommandRequest, FeatureStatus, FindLinks, GradleCompatibilityInfo, LinkLocation, ProgressReportNotification, ServerNotification, SourceAttachmentAttribute, SourceAttachmentRequest, SourceAttachmentResult, StatusNotification, UpgradeGradleWrapperInfo } from "./protocol"
+import { ActionableNotification, BuildProjectParams, BuildProjectRequest, CompileWorkspaceRequest, BuildWorkspaceStatus, EventNotification, EventType, ExecuteClientCommandRequest, FeatureStatus, FindLinks, GradleCompatibilityInfo, LinkLocation, ProgressReportNotification, ServerNotification, SourceAttachmentAttribute, SourceAttachmentRequest, SourceAttachmentResult, StatusNotification, UpgradeGradleWrapperInfo } from "./protocol"
 import * as refactorAction from './refactorAction'
 import { getJdkUrl, RequirementsData, sortJdksBySource, sortJdksByVersion } from "./requirements"
 import { serverStatus, ServerStatusKind } from "./serverStatus"
@@ -456,22 +456,29 @@ export class StandardLanguageClient {
           p.report({ message: 'Rebuilding projects...' })
           return new Promise(async (resolve, reject) => {
             const start = new Date().getTime()
-            let res: CompileWorkspaceStatus
+            let res: BuildWorkspaceStatus
             try {
               res = token ? await this.languageClient.sendRequest(BuildProjectRequest.type, params, token) :
                 await this.languageClient.sendRequest(BuildProjectRequest.type, params)
             } catch (error) {
               if (error && error.code === -32800) { // Check if the request is cancelled.
-                res = CompileWorkspaceStatus.cancelled
+                res = BuildWorkspaceStatus.cancelled
               }
               reject(error)
             }
 
             const elapsed = new Date().getTime() - start
             const humanVisibleDelay = elapsed < 1000 ? 1000 : 0
-            if (res == CompileWorkspaceStatus.withError) {
+
+            if (res == BuildWorkspaceStatus.withError) {
               showCompileBuildDiagnostics()
               window.showWarningMessage("Build finished with errors")
+            } else if (res == BuildWorkspaceStatus.succeed) {
+              window.showInformationMessage("Build finished successfully")
+            } else if (res == BuildWorkspaceStatus.cancelled) {
+              window.showWarningMessage("Build process was canceled")
+            } else {
+              window.showErrorMessage("Build process failed")
             }
             setTimeout(() => { // set a timeout so user would still see the message when build time is short
               resolve()
@@ -489,13 +496,13 @@ export class StandardLanguageClient {
           p.report({ message: 'Compiling workspace...' })
           return new Promise(async (resolve, reject) => {
             const start = new Date().getTime()
-            let res: CompileWorkspaceStatus
+            let res: BuildWorkspaceStatus
             try {
               res = token ? await this.languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile, token)
                 : await this.languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile)
             } catch (error) {
               if (error && error.code === -32800) { // Check if the request is cancelled.
-                res = CompileWorkspaceStatus.cancelled
+                res = BuildWorkspaceStatus.cancelled
               } else {
                 reject(error)
               }
@@ -504,9 +511,15 @@ export class StandardLanguageClient {
             const elapsed = new Date().getTime() - start
             const humanVisibleDelay = elapsed < 1000 ? 1000 : 0
 
-            if (res == CompileWorkspaceStatus.withError) {
+            if (res == BuildWorkspaceStatus.withError) {
               showCompileBuildDiagnostics()
-              window.showWarningMessage("Compilation finished with errors")
+              window.showWarningMessage("Compilation for workspace finished with errors")
+            } else if (res == BuildWorkspaceStatus.succeed) {
+              window.showInformationMessage("Compilation for workspace finished successfully")
+            } else if (res == BuildWorkspaceStatus.cancelled) {
+              window.showWarningMessage("Compilation process was canceled")
+            } else {
+              window.showErrorMessage("Compilation process failed")
             }
             setTimeout(() => { // set a timeout so user would still see the message when build time is short
               resolve(res)

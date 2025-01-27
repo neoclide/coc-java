@@ -62,7 +62,7 @@ export enum EventType {
   upgradeGradleWrapper = 400,
 }
 
-export enum CompileWorkspaceStatus {
+export enum BuildWorkspaceStatus {
   failed = 0,
   succeed = 1,
   withError = 2,
@@ -132,11 +132,11 @@ export namespace EventNotification {
 }
 
 export namespace CompileWorkspaceRequest {
-  export const type = new RequestType<boolean, CompileWorkspaceStatus, void>('java/buildWorkspace')
+  export const type = new RequestType<boolean, BuildWorkspaceStatus, void>('java/buildWorkspace')
 }
 
 export namespace BuildProjectRequest {
-  export const type = new RequestType<BuildProjectParams, CompileWorkspaceStatus, void>('java/buildProjects')
+  export const type = new RequestType<BuildProjectParams, BuildWorkspaceStatus, void>('java/buildProjects')
 }
 
 export interface BuildProjectParams {
