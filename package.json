@@ -1,6 +1,6 @@
 {
     "name": "coc-java-dev",
-    "version": "1.25.4",
+    "version": "1.25.5",
     "description": "Java language extension for coc.nvim",
     "main": "lib/index.js",
     "publisher": "chemzqm",
@@ -282,23 +282,23 @@
                     "scope": "window"
                 },
                 "java.implementationCodeLens": {
-                  "type": "string",
-                  "enum": [
-                    "all",
-                    "none",
-                    "types",
-                    "methods"
-                  ],
-                  "enumDescriptions": [
-                    "Disable the implementations code lens",
-                    "Enable the implementations code lens only for types",
-                    "Enable the implementations code lens only for methods",
-                    "Enable the implementations code lens for types and methods"
-                  ],
-                  "default": "none",
-                  "description": "Enable/disable the implementations code lens for the provided categories.",
-                  "scope": "window",
-                  "order": 20
+                    "type": "string",
+                    "enum": [
+                        "all",
+                        "none",
+                        "types",
+                        "methods"
+                    ],
+                    "enumDescriptions": [
+                        "Disable the implementations code lens",
+                        "Enable the implementations code lens only for types",
+                        "Enable the implementations code lens only for methods",
+                        "Enable the implementations code lens for types and methods"
+                    ],
+                    "default": "none",
+                    "description": "Enable/disable the implementations code lens for the provided categories.",
+                    "scope": "window",
+                    "order": 20
                 },
                 "java.configuration.maven.userSettings": {
                     "type": "string",
@@ -444,19 +444,19 @@
                     "scope": "window"
                 },
                 "java.completion.engine": {
-                  "type": "string",
-                  "default": "ecj",
-                  "description": "[Experimental] Select code completion engine",
-                  "scope": "window",
-                  "enum": [
-                    "ecj",
-                    "dom"
-                  ],
-                  "markdownEnumDescriptions": [
-                    "Use ECJ-based code completion engine (default)",
-                    "Use (highly experimental) JDT DOM-based code completion engine (requires `java.jdt.ls.javac.enabled` to be `on`)"
-                  ],
-                  "order": 1000
+                    "type": "string",
+                    "default": "ecj",
+                    "description": "[Experimental] Select code completion engine",
+                    "scope": "window",
+                    "enum": [
+                        "ecj",
+                        "dom"
+                    ],
+                    "markdownEnumDescriptions": [
+                        "Use ECJ-based code completion engine (default)",
+                        "Use (highly experimental) JDT DOM-based code completion engine (requires `java.jdt.ls.javac.enabled` to be `on`)"
+                    ],
+                    "order": 1000
                 },
                 "java.completion.maxResults": {
                     "type": "integer",
@@ -840,11 +840,11 @@
                     "default": []
                 },
                 "java.references.includeDeclarations": {
-                  "type": "boolean",
-                  "default": false,
-                  "description": "Include declarations when finding references.",
-                  "scope": "window",
-                  "order": 40
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Include declarations when finding references.",
+                    "scope": "window",
+                    "order": 40
                 },
                 "java.references.includeAccessors": {
                     "type": "boolean",
@@ -927,15 +927,15 @@
                     "scope": "window"
                 },
                 "java.jdt.ls.javac.enabled": {
-                  "type": "string",
-                  "enum": [
-                    "on",
-                    "off"
-                  ],
-                  "default": "off",
-                  "markdownDescription": "[Experimental] Specify whether to enable Javac-based compilation in the language server. Requires running this extension with Java 23",
-                  "scope": "window",
-                  "order": 95
+                    "type": "string",
+                    "enum": [
+                        "on",
+                        "off"
+                    ],
+                    "default": "off",
+                    "markdownDescription": "[Experimental] Specify whether to enable Javac-based compilation in the language server. Requires running this extension with Java 23",
+                    "scope": "window",
+                    "order": 95
                 },
                 "java.jdt.ls.lombokSupport.enabled": {
                     "type": "boolean",
