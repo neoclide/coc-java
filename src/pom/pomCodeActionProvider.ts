@@ -55,7 +55,7 @@ export class PomCodeActionProvider implements CodeActionProvider<CodeAction> {
 
         const action3 = CodeAction.create("Mark this execution as ignored in pom.xml", CodeActionKind.QuickFix + ".pom")
         action3.edit = { documentChanges: [] }
-        action2.edit.documentChanges.push(
+        action3.edit.documentChanges.push(
           TextDocumentEdit.create({ uri: document.uri, version: document.version }, [
             TextEdit.insert(diagnostic.range.end, `${indentation}<?m2e ignore?>`)
           ]
