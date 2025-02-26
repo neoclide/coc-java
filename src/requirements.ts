@@ -1,16 +1,16 @@
 'use strict'
 
-import {ExtensionContext, Uri, window, workspace} from 'coc.nvim'
+import { ExtensionContext, Uri, window, workspace } from 'coc.nvim'
 import expandHomeDir from 'expand-home-dir'
 import * as fse from 'fs-extra'
-import {findRuntimes, getRuntime, getSources, IJavaRuntime, JAVAC_FILENAME} from 'jdk-utils'
+import { findRuntimes, getRuntime, getSources, IJavaRuntime, JAVAC_FILENAME } from 'jdk-utils'
 import * as path from 'path'
-import {Commands} from './commands'
-import {checkAndDownloadJRE} from './jre'
-import {createLogger} from './log'
-import {checkJavaPreferences} from './settings'
-import {existsSync} from 'fs'
-import {getJavaConfiguration} from './utils';
+import { Commands } from './commands'
+import { checkAndDownloadJRE } from './jre'
+import { createLogger } from './log'
+import { checkJavaPreferences } from './settings'
+import { existsSync } from 'fs'
+import { getJavaConfiguration } from './utils';
 
 let cachedJdks: IJavaRuntime[]
 let cachedJreNames: string[]
@@ -68,7 +68,7 @@ export async function resolveRequirements(context: ExtensionContext): Promise<Re
     }
 
     // search valid JDKs from env.JAVA_HOME, env.PATH, SDKMAN, jEnv, jabba, Common directories
-    const javaRuntimes = await findRuntimes({checkJavac: true, withVersion: true, withTags: true})
+    const javaRuntimes = await findRuntimes({ checkJavac: true, withVersion: true, withTags: true })
     if (!toolingJre) { // universal version
       // as latest version as possible.
       sortJdksByVersion(javaRuntimes)
@@ -149,7 +149,7 @@ export function getSupportedJreNames(): string[] {
 
 export async function listJdks(force?: boolean): Promise<IJavaRuntime[]> {
   if (force || !cachedJdks) {
-    cachedJdks = await findRuntimes({checkJavac: true, withVersion: true, withTags: true})
+    cachedJdks = await findRuntimes({ checkJavac: true, withVersion: true, withTags: true })
       .then(jdks => jdks.filter(jdk => {
         return existsSync(path.join(jdk.homedir, "lib", "rt.jar"))
           || existsSync(path.join(jdk.homedir, "jre", "lib", "rt.jar")) // Java 8
@@ -161,7 +161,7 @@ export async function listJdks(force?: boolean): Promise<IJavaRuntime[]> {
 }
 
 export function sortJdksBySource(jdks: IJavaRuntime[]) {
-  const rankedJdks = jdks as Array<IJavaRuntime & {rank: number}>
+  const rankedJdks = jdks as Array<IJavaRuntime & { rank: number }>
   const sources = ["JDK_HOME", "JAVA_HOME", "PATH"]
   for (const [index, source] of sources.entries()) {
     for (const jdk of rankedJdks) {
@@ -235,6 +235,6 @@ async function getMajorVersion(javaHome: string): Promise<number> {
   if (!javaHome) {
     return 0
   }
-  const runtime = await getRuntime(javaHome, {withVersion: true})
+  const runtime = await getRuntime(javaHome, { withVersion: true })
   return runtime?.version?.major || 0
 }
