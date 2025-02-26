@@ -1,6 +1,6 @@
 'use strict'
 
-import { CancellationToken, CodeActionKind, commands, ConfigurationTarget, DocumentSelector, Emitter, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, languages, Location, Position, Range, services, StreamInfo, TextDocumentPositionParams, TextEditor, Uri, window, workspace } from "coc.nvim"
+import { CancellationToken, CodeActionKind, commands, ConfigurationTarget, DocumentSelector, Emitter, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, languages, Location, Position, Range, services, StreamInfo, TextDocumentPositionParams, TextEditor, Uri, window, nvim, workspace, diagnosticManager, DiagnosticSeverity, DiagnosticItem } from "coc.nvim"
 import * as fse from 'fs-extra'
 import { findRuntimes } from "jdk-utils"
 import * as net from 'net'
@@ -20,7 +20,7 @@ import { checkLombokDependency } from "./lombokSupport"
 import { markdownPreviewProvider } from "./markdownPreviewProvider"
 import { collectBuildFilePattern, onExtensionChange } from "./plugin"
 import { pomCodeActionMetadata, PomCodeActionProvider } from "./pom/pomCodeActionProvider"
-import { ActionableNotification, BuildProjectParams, BuildProjectRequest, CompileWorkspaceRequest, CompileWorkspaceStatus, EventNotification, EventType, ExecuteClientCommandRequest, FeatureStatus, FindLinks, GradleCompatibilityInfo, LinkLocation, ProgressReportNotification, ServerNotification, SourceAttachmentAttribute, SourceAttachmentRequest, SourceAttachmentResult, StatusNotification, UpgradeGradleWrapperInfo } from "./protocol"
+import { ActionableNotification, BuildProjectParams, BuildProjectRequest, CompileWorkspaceRequest, BuildWorkspaceStatus, EventNotification, EventType, ExecuteClientCommandRequest, FeatureStatus, FindLinks, GradleCompatibilityInfo, LinkLocation, ProgressReportNotification, ServerNotification, SourceAttachmentAttribute, SourceAttachmentRequest, SourceAttachmentResult, StatusNotification, UpgradeGradleWrapperInfo } from "./protocol"
 import * as refactorAction from './refactorAction'
 import { getJdkUrl, RequirementsData, sortJdksBySource, sortJdksByVersion } from "./requirements"
 import { serverStatus, ServerStatusKind } from "./serverStatus"
@@ -80,7 +80,7 @@ export class StandardLanguageClient {
       }
     })
 
-    let serverOptions
+    let serverOptions: any
     const port = process.env['SERVER_PORT']
     if (!port) {
       const lsPort = process.env['JDTLS_CLIENT_PORT']
@@ -125,8 +125,8 @@ export class StandardLanguageClient {
               showImportFinishNotification(context)
             }
             checkLombokDependency(context)
-            apiManager.getApiInstance().onDidClasspathUpdate((e: Uri) => {
-              checkLombokDependency(context)
+            apiManager.getApiInstance().onDidClasspathUpdate((uri: Uri) => {
+              checkLombokDependency(context, uri)
             })
             // Disable the client-side snippet provider since LS is ready.
             // snippetCompletionProvider.dispose()
@@ -170,7 +170,7 @@ export class StandardLanguageClient {
           case EventType.classpathUpdated:
             apiManager.fireDidClasspathUpdate(Uri.parse(notification.data))
             break
-          case EventType.projectsImported:
+          case EventType.projectsImported: {
             const projectUris: Uri[] = []
             if (notification.data) {
               for (const uriString of notification.data) {
@@ -181,6 +181,19 @@ export class StandardLanguageClient {
               apiManager.fireDidProjectsImport(projectUris)
             }
             break
+          }
+          case EventType.projectsDeleted: {
+            const projectUris: Uri[] = []
+            if (notification.data) {
+              for (const uriString of notification.data) {
+                projectUris.push(Uri.parse(uriString))
+              }
+            }
+            if (projectUris.length > 0) {
+              apiManager.fireDidProjectsDelete(projectUris)
+            }
+            break
+          }
           case EventType.incompatibleGradleJdkIssue:
             const options: string[] = []
             const info = notification.data as GradleCompatibilityInfo
@@ -443,20 +456,30 @@ export class StandardLanguageClient {
           p.report({ message: 'Rebuilding projects...' })
           return new Promise(async (resolve, reject) => {
             const start = new Date().getTime()
-
-            let res: CompileWorkspaceStatus
+            let res: BuildWorkspaceStatus
             try {
               res = token ? await this.languageClient.sendRequest(BuildProjectRequest.type, params, token) :
                 await this.languageClient.sendRequest(BuildProjectRequest.type, params)
             } catch (error) {
               if (error && error.code === -32800) { // Check if the request is cancelled.
-                res = CompileWorkspaceStatus.cancelled
+                res = BuildWorkspaceStatus.cancelled
               }
               reject(error)
             }
 
             const elapsed = new Date().getTime() - start
             const humanVisibleDelay = elapsed < 1000 ? 1000 : 0
+
+            if (res == BuildWorkspaceStatus.withError) {
+              showCompileBuildDiagnostics()
+              window.showWarningMessage("Build finished with errors")
+            } else if (res == BuildWorkspaceStatus.succeed) {
+              window.showInformationMessage("Build finished successfully")
+            } else if (res == BuildWorkspaceStatus.cancelled) {
+              window.showWarningMessage("Build process was canceled")
+            } else {
+              window.showErrorMessage("Build process failed")
+            }
             setTimeout(() => { // set a timeout so user would still see the message when build time is short
               resolve()
             }, humanVisibleDelay)
@@ -471,28 +494,35 @@ export class StandardLanguageClient {
             isFullCompile = selection !== 'Incremental'
           }
           p.report({ message: 'Compiling workspace...' })
-          const start = new Date().getTime()
-          let res: CompileWorkspaceStatus
-          try {
-            res = token ? await this.languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile, token)
-              : await this.languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile)
-          } catch (error) {
-            if (error && error.code === -32800) { // Check if the request is cancelled.
-              res = CompileWorkspaceStatus.cancelled
-            } else {
-              throw error
-            }
-          }
-
-          const elapsed = new Date().getTime() - start
-          const humanVisibleDelay = elapsed < 1000 ? 1000 : 0
-          return new Promise((resolve, reject) => {
-            setTimeout(() => { // set a timeout so user would still see the message when build time is short
-              if (res === CompileWorkspaceStatus.succeed) {
-                resolve(res)
+          return new Promise(async (resolve, reject) => {
+            const start = new Date().getTime()
+            let res: BuildWorkspaceStatus
+            try {
+              res = token ? await this.languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile, token)
+                : await this.languageClient.sendRequest(CompileWorkspaceRequest.type, isFullCompile)
+            } catch (error) {
+              if (error && error.code === -32800) { // Check if the request is cancelled.
+                res = BuildWorkspaceStatus.cancelled
               } else {
-                reject(res)
+                reject(error)
               }
+            }
+
+            const elapsed = new Date().getTime() - start
+            const humanVisibleDelay = elapsed < 1000 ? 1000 : 0
+
+            if (res == BuildWorkspaceStatus.withError) {
+              showCompileBuildDiagnostics()
+              window.showWarningMessage("Compilation for workspace finished with errors")
+            } else if (res == BuildWorkspaceStatus.succeed) {
+              window.showInformationMessage("Compilation for workspace finished successfully")
+            } else if (res == BuildWorkspaceStatus.cancelled) {
+              window.showWarningMessage("Compilation process was canceled")
+            } else {
+              window.showErrorMessage("Compilation process failed")
+            }
+            setTimeout(() => { // set a timeout so user would still see the message when build time is short
+              resolve(res)
             }, humanVisibleDelay)
           })
         })
@@ -656,6 +686,22 @@ async function showImportFinishNotification(context: ExtensionContext) {
   }
 }
 
+async function showCompileBuildDiagnostics() {
+  const diagnostics = await diagnosticManager.getDiagnosticList()
+  const normalized = Uri.parse(workspace.getWorkspaceFolder(workspace.cwd).uri)
+
+  const workingDirectoryList = diagnostics.filter(item => isParentFolder(normalized.fsPath, item.file))
+  const errorDiagnostics = workingDirectoryList.filter(item => isErrorDiagnostic(item.level))
+  const filesDiagnostics = errorDiagnostics.filter(item => isFileDiagnostic(item))
+  const quickFixList = await workspace.getQuickfixList(filesDiagnostics.map(item => item.location))
+
+  const quickListConfig: any = { title: `[JDTLS] Compile & Build project [${formatDate(new Date())}]`, items: quickFixList }
+  await nvim.call('setqflist', [[], " ", quickListConfig])
+
+  let openCommand = await nvim.getVar('coc_quickfix_open_command') as string
+  nvim.command(typeof openCommand === 'string' ? openCommand : 'copen', true)
+}
+
 function logNotification(message: string) {
   return new Promise(() => {
     createLogger().trace(message)
@@ -698,6 +744,49 @@ function setNullAnalysisStatus(status: FeatureStatus) {
 
 function decodeBase64(text: string): string {
   return Buffer.from(text, 'base64').toString('ascii')
+}
+
+function fileStartsWith(dir: string, pdir: string) {
+  return dir.toLowerCase().startsWith(pdir.toLowerCase())
+}
+
+function normalizeFilePath(filepath: string) {
+  return Uri.file(path.resolve(path.normalize(filepath))).fsPath
+}
+
+function isErrorDiagnostic(level: number): boolean {
+  return level == DiagnosticSeverity.Error
+}
+
+function isFileDiagnostic(item: DiagnosticItem): boolean {
+  const basename = path.basename(item.file)
+  const extension = path.extname(item.file)
+  return basename == "pom.xml" || basename === "build.gradle" || extension === ".java"
+}
+
+function isParentFolder(folder: string, filepath: string): boolean {
+  let pdir = normalizeFilePath(folder)
+  let dir = normalizeFilePath(filepath)
+  return fileStartsWith(dir, pdir) && dir[pdir.length] == path.sep
+}
+
+function formatDate(date: Date): string {
+    // Weekday names
+    const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    // Month names
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    // Extract components
+    const dayOfWeek = weekdays[date.getDay()];
+    const month = months[date.getMonth()];
+    const dayOfMonth = date.getDate();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    const year = date.getFullYear();
+
+    // Format the date string
+    return `${dayOfWeek} ${month} ${dayOfMonth} ${hours}:${minutes}:${seconds} ${year}`;
 }
 
 export function showNoLocationFound(message: string): void {

@@ -1,0 +1,31 @@
+---
+name: update_server
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 1 * *'
+jobs:
+  update-server:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Update artifacts
+        env:
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          make update
+
+      - name: Commit changes
+        env:
+          COMMIT_MSG: |
+            bump(version): Update server artifacts
+        run: |
+          npm --no-git-tag-version version patch
+          git config user.email "actions@github"
+          git config user.name "Github Actions"
+          git add .
+          git diff --quiet && git diff --staged --quiet || (git commit -m "${COMMIT_MSG}"; git push origin HEAD:${GITHUB_REF})

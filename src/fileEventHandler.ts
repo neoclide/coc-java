@@ -62,17 +62,17 @@ async function handleNewJavaFiles(e: FileCreateEvent) {
   // the event source, a workaround is to wait 100ms and let WorkspaceEdit
   // to take effect first, then check if the workingcopy is filled with content.
   const timeout = setTimeout(async () => {
-    const formatNumber = (num => num > 9 ? String(num) : `0${num}`);
+    const formatNumber = (num => num > 9 ? String(num) : `0${num}`)
     for (let i = 0; i < emptyFiles.length; i++) {
       if (textDocuments[i].getText()) {
-        continue;
+        continue
       }
       const fileName = Uri.parse(textDocuments[i].uri).fsPath
 
-      const typeName: string = resolveTypeName(fileName);
-      const isPackageInfo = typeName === 'package-info';
-      const isModuleInfo = typeName === 'module-info';
-      const date = new Date();
+      const typeName: string = resolveTypeName(fileName)
+      const isPackageInfo = typeName === 'package-info'
+      const isModuleInfo = typeName === 'module-info'
+      const date = new Date()
       const context: any = {
         fileName: path.basename(fileName),
         packageName: "",
@@ -86,54 +86,54 @@ async function handleNewJavaFiles(e: FileCreateEvent) {
         day: formatNumber(date.getDate()),
         hour: formatNumber(date.getHours()),
         minute: formatNumber(date.getMinutes()),
-      };
-
-      if (!isModuleInfo) {
-        context.packageName = resolvePackageName(sourcePaths, emptyFiles[i].fsPath);
       }
 
-      const snippets: string[] = [];
-      const fileHeader = getJavaConfiguration().get<string[]>("templates.fileHeader");
+      if (!isModuleInfo) {
+        context.packageName = resolvePackageName(sourcePaths, emptyFiles[i].fsPath)
+      }
+
+      const snippets: string[] = []
+      const fileHeader = getJavaConfiguration().get<string[]>("templates.fileHeader")
       if (fileHeader && fileHeader.length) {
         for (const template of fileHeader) {
-          snippets.push(stringInterpolate(template, context));
+          snippets.push(stringInterpolate(template, context))
         }
       }
 
       if (!isModuleInfo) {
         if (context.packageName) {
-          snippets.push(`package ${context.packageName};`);
-          snippets.push("");
+          snippets.push(`package ${context.packageName};`)
+          snippets.push("")
         }
       }
       if (!isPackageInfo) {
-        const typeComment = getJavaConfiguration().get<string[]>("templates.typeComment");
+        const typeComment = getJavaConfiguration().get<string[]>("templates.typeComment")
         if (typeComment && typeComment.length) {
           for (const template of typeComment) {
-            snippets.push(stringInterpolate(template, context));
+            snippets.push(stringInterpolate(template, context))
           }
         }
 
         if (isModuleInfo) {
-          snippets.push(`module \${1:name} {`);
+          snippets.push(`module \${1:name} {`)
         } else if (!serverReady || await isVersionLessThan(emptyFiles[i].toString(), 14)) {
-          snippets.push(`public \${1|class,interface,enum,abstract class,@interface|} ${typeName} {`);
+          snippets.push(`public \${1|class,interface,enum,abstract class,@interface|} ${typeName} {`)
         } else {
-          snippets.push(`public \${1|class ${typeName},interface ${typeName},enum ${typeName},record ${typeName}(),abstract class ${typeName},@interface ${typeName}|} {`);
+          snippets.push(`public \${1|class ${typeName},interface ${typeName},enum ${typeName},record ${typeName}(),abstract class ${typeName},@interface ${typeName}|} {`)
         }
-        snippets.push("\t${0}");
-        snippets.push("}");
-        snippets.push("");
+        snippets.push("\t${0}")
+        snippets.push("}")
+        snippets.push("")
       }
       await workspace.jumpTo(textDocuments[i].uri)
       if (textDocuments[i].getText()) {
-        continue;
+        continue
       }
       snippetManager.insertSnippet(new SnippetString(snippets.join("\n")))
     }
 
-    clearTimeout(timeout);
-  }, 100);
+    clearTimeout(timeout)
+  }, 100)
 }
 
 function getWillRenameHandler(client: LanguageClient) {

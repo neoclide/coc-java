@@ -6,11 +6,38 @@ import * as path from 'path'
 import { TextDocumentIdentifier } from 'vscode-languageserver-protocol'
 import { Commands } from './commands'
 import { buildFilePatterns } from './plugin'
-import { ProjectConfigurationUpdateRequest } from './protocol'
+import { ProjectConfigurationUpdateRequest, RefactorWorkspaceEdit } from './protocol'
 import { getAllJavaProjects } from './utils'
 
 interface QuickPickItemWithDetail extends QuickPickItem {
   detail: string
+}
+
+export async function applyRefactorEdit(languageClient: LanguageClient, refactorEdit: RefactorWorkspaceEdit) {
+  if (!refactorEdit) {
+    return
+  }
+
+  if (refactorEdit.errorMessage) {
+    window.showErrorMessage(refactorEdit.errorMessage)
+    return
+  }
+
+  if (refactorEdit.edit) {
+    const edit = refactorEdit.edit
+    if (edit) {
+      await workspace.applyEdit(edit)
+    }
+  }
+
+  if (refactorEdit.command) {
+    await new Promise(resolve => setTimeout(resolve, 400))
+    if (refactorEdit.command.arguments) {
+      await commands.executeCommand(refactorEdit.command.command, ...refactorEdit.command.arguments)
+    } else {
+      await commands.executeCommand(refactorEdit.command.command)
+    }
+  }
 }
 
 export async function projectConfigurationUpdate(languageClient: LanguageClient, uris?: TextDocumentIdentifier | Uri | Uri[]) {
@@ -136,7 +163,7 @@ export async function upgradeGradle(projectUri: string, version?: string): Promi
     title: "Upgrading Gradle wrapper...",
     cancellable: true,
   }, (_progress, token) => {
-    return commands.executeCommand<string>(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.UPGRADE_GRADLE_WRAPPER, projectUri, version, token);
+    return commands.executeCommand<string>(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.UPGRADE_GRADLE_WRAPPER, projectUri, version, token)
   })
   if (result) {
     // const propertiesFile = path.join(Uri.parse(projectUri).fsPath, "gradle", "wrapper", "gradle-wrapper.properties")

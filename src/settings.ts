@@ -1,27 +1,20 @@
 'use strict'
 
-import { commands, ConfigurationTarget, ExtensionContext, Uri, window, workspace, WorkspaceConfiguration, WorkspaceFolder } from 'coc.nvim'
+import {commands, ConfigurationTarget, ExtensionContext, Uri, window, workspace, WorkspaceConfiguration, WorkspaceFolder} from 'coc.nvim'
 import * as fs from 'fs'
 import * as path from 'path'
-import { Commands } from './commands'
-import { cleanupLombokCache } from './lombokSupport'
-import { ensureExists, getJavaConfiguration } from './utils'
+import {Commands} from './commands'
+import {cleanupLombokCache} from './lombokSupport'
+import {ensureExists, getJavaConfiguration} from './utils'
 
 const DEFAULT_HIDDEN_FILES: string[] = ['**/.classpath', '**/.project', '**/.settings', '**/.factorypath']
 const IS_WORKSPACE_JDK_ALLOWED = "java.ls.isJdkAllowed"
 const IS_WORKSPACE_JLS_JDK_ALLOWED = "java.jdt.ls.java.home.isAllowed"
 export const IS_WORKSPACE_VMARGS_ALLOWED = "java.ls.isVmargsAllowed"
-const extensionName = 'Language Support for Java'
 export const ACTIVE_BUILD_TOOL_STATE = "java.activeBuildTool"
 
 export const cleanWorkspaceFileName = '.cleanWorkspace'
-const env = { appName: 'coc.nvim' }
-
-const changeItem = {
-  global: 'Exclude globally',
-  workspace: 'Exclude in workspace',
-  never: 'Never'
-}
+const env = {appName: 'coc.nvim'}
 
 const EXCLUDE_FILE_CONFIG = 'configuration.checkProjectSettingsExclusions'
 export const ORGANIZE_IMPORTS_ON_PASTE = 'actionsOnPaste.organizeImports' // java.actionsOnPaste.organizeImports
@@ -134,7 +127,11 @@ function hasJavaConfigChanged(oldConfig: WorkspaceConfiguration, newConfig: Work
     || hasConfigKeyChanged('jdt.ls.vmargs', oldConfig, newConfig)
     || hasConfigKeyChanged('progressReports.enabled', oldConfig, newConfig)
     || hasConfigKeyChanged('server.launchMode', oldConfig, newConfig)
-    || hasConfigKeyChanged('sharedIndexes.location', oldConfig, newConfig);;
+    || hasConfigKeyChanged('sharedIndexes.location', oldConfig, newConfig)
+    || hasConfigKeyChanged('transport', oldConfig, newConfig)
+    || hasConfigKeyChanged('diagnostic.filter', oldConfig, newConfig)
+    || hasConfigKeyChanged('jdt.ls.javac.enabled', oldConfig, newConfig)
+    || hasConfigKeyChanged('completion.engine', oldConfig, newConfig);
 }
 
 function hasConfigKeyChanged(key, oldConfig, newConfig) {
@@ -154,7 +151,7 @@ export function getJavaEncoding(): string {
   return javaEncoding
 }
 
-export async function checkJavaPreferences(context: ExtensionContext): Promise<{ javaHome?: string; preference: string }> {
+export async function checkJavaPreferences(context: ExtensionContext): Promise<{javaHome?: string; preference: string}> {
   const allow = 'Allow'
   const disallow = 'Disallow'
   let preference: string = 'java.jdt.ls.java.home'
@@ -296,7 +293,7 @@ export function setGradleWrapperChecksum(wrapper: string, sha256?: string) {
       }
       const entry = property.filter(p => (p.sha256 === sha256))
       if (entry === null || entry.length === 0) {
-        property.push({ sha256: sha256, allowed: allowed })
+        property.push({sha256: sha256, allowed: allowed})
         workspace.getConfiguration().update(key, property, ConfigurationTarget.Global)
       }
       unregisterGradleWrapperPromptDialog(sha256)

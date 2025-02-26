@@ -1,40 +1,40 @@
 'use strict'
 
 import * as chokidar from 'chokidar'
-import { CancellationToken, CodeActionContext, CodeActionTriggerKind, commands, ConfigurationTarget, Diagnostic, Document, Emitter, events, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, RelativePattern, RevealOutputChannelOn, Uri, window, workspace, WorkspaceConfiguration } from 'coc.nvim'
-import { createHash } from 'crypto'
+import {CancellationToken, CodeActionContext, CodeActionTriggerKind, commands, ConfigurationTarget, Diagnostic, Document, Emitter, events, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, RelativePattern, RevealOutputChannelOn, Uri, window, workspace, WorkspaceConfiguration} from 'coc.nvim'
+import {createHash} from 'crypto'
 import * as fs from 'fs'
 import * as fse from 'fs-extra'
 import * as os from 'os'
 import * as path from 'path'
-import { CodeActionParams, CodeActionRequest, DidChangeConfigurationNotification, ExecuteCommandParams, ExecuteCommandRequest } from 'vscode-languageserver-protocol'
-import { apiManager } from './apiManager'
-import { ClientErrorHandler } from './clientErrorHandler'
-import { Commands } from './commands'
-import { ClientStatus, ExtensionAPI } from './extension.api'
+import {CodeActionParams, CodeActionRequest, DidChangeConfigurationNotification, ExecuteCommandParams, ExecuteCommandRequest} from 'vscode-languageserver-protocol'
+import {apiManager} from './apiManager'
+import {ClientErrorHandler} from './clientErrorHandler'
+import {Commands} from './commands'
+import {ClientStatus, ExtensionAPI} from './extension.api'
 import * as fileEventHandler from './fileEventHandler'
-import { getSharedIndexCache, HEAP_DUMP_LOCATION, prepareExecutable } from './javaServerStarter'
-import { createLogger, initializeLogFile } from './log'
-import { cleanupLombokCache } from "./lombokSupport"
-import { markdownPreviewProvider } from "./markdownPreviewProvider"
-import { OutputInfoCollector } from './outputInfoCollector'
-import { collectJavaExtensions, getBundlesToReload } from './plugin'
-import { registerClientProviders } from './providerDispatcher'
-import { initialize as initializeRecommendation } from './recommendation'
+import {getSharedIndexCache, HEAP_DUMP_LOCATION, prepareExecutable} from './javaServerStarter'
+import {createLogger, initializeLogFile} from './log'
+import {cleanupLombokCache} from "./lombokSupport"
+import {markdownPreviewProvider} from "./markdownPreviewProvider"
+import {OutputInfoCollector} from './outputInfoCollector'
+import {collectJavaExtensions, getBundlesToReload} from './plugin'
+import {registerClientProviders} from './providerDispatcher'
+import {initialize as initializeRecommendation} from './recommendation'
 import * as requirements from './requirements'
-import { runtimeStatusBarProvider } from './runtimeStatusBarProvider'
-import { serverStatusBarProvider } from './serverStatusBarProvider'
-import { ACTIVE_BUILD_TOOL_STATE, cleanWorkspaceFileName, getJavaServerMode, onConfigurationChange, ServerMode } from './settings'
-import { StandardLanguageClient } from './standardLanguageClient'
-import { SyntaxLanguageClient } from './syntaxLanguageClient'
-import { convertToGlob, deleteDirectory, ensureExists, getBuildFilePatterns, getExclusionBlob, getInclusionPatternsFromNegatedExclusion, getJavaConfig, getJavaConfiguration, hasBuildToolConflicts, rangeIntersect } from './utils'
-import { checkAndDownloadJRE } from './jre'
+import {runtimeStatusBarProvider} from './runtimeStatusBarProvider'
+import {serverStatusBarProvider} from './serverStatusBarProvider'
+import {ACTIVE_BUILD_TOOL_STATE, cleanWorkspaceFileName, getJavaServerMode, onConfigurationChange, ServerMode} from './settings'
+import {StandardLanguageClient} from './standardLanguageClient'
+import {SyntaxLanguageClient} from './syntaxLanguageClient'
+import {addAutoDetectedJdks, convertToGlob, deleteDirectory, ensureExists, getBuildFilePatterns, getExclusionBlob, getInclusionPatternsFromNegatedExclusion, getJavaConfig, getJavaConfiguration, hasBuildToolConflicts, rangeIntersect} from './utils'
 import glob = require('glob')
 
 const syntaxClient: SyntaxLanguageClient = new SyntaxLanguageClient()
 const standardClient: StandardLanguageClient = new StandardLanguageClient()
 const jdtEventEmitter = new Emitter<Uri>()
 const extensionName = 'Language Support for Java'
+
 let storagePath: string
 let clientLogFile: string
 
@@ -89,6 +89,9 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
   }))
 
   storagePath = context.storagePath
+  if (!storagePath) {
+    storagePath = getTempWorkspace();
+  }
   context.subscriptions.push(commands.registerCommand(Commands.MEATDATA_FILES_GENERATION, async () => {
     markdownPreviewProvider.show(context.asAbsolutePath(path.join('document', `_java.metadataFilesGeneration.md`)), 'Metadata Files Generation', "", context)
   }, null, true))
@@ -138,9 +141,9 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
       const clientOptions: LanguageClientOptions = {
         // Register the server for java
         documentSelector: [
-          { scheme: 'file', language: 'java' },
-          { scheme: 'jdt', language: 'java' },
-          { scheme: 'untitled', language: 'java' }
+          {scheme: 'file', language: 'java'},
+          {scheme: 'jdt', language: 'java'},
+          {scheme: 'untitled', language: 'java'}
         ],
         synchronize: {
           configurationSection: ['java'],
@@ -148,7 +151,9 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
         initializationOptions: {
           bundles: collectJavaExtensions(extensions.all),
           workspaceFolders: workspace.workspaceFolders ? workspace.workspaceFolders.map(f => f.uri.toString()) : null,
-          settings: { java: getJavaConfig(requirements.java_home) },
+          settings: {
+            java: getJavaConfig(requirements.java_home),
+          },
           extendedClientCapabilities: {
             progressReportProvider: getJavaConfiguration().get('progressReports.enabled'),
             classFileContentsSupport: true,
@@ -170,6 +175,8 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
             shouldLanguageServerExitOnShutdown: true,
             onCompletionItemSelectedCommand: "editor.action.triggerParameterHints",
             extractInterfaceSupport: true,
+            advancedUpgradeGradleSupport: true,
+            executeClientCommandSupport: true,
           },
           triggerFiles,
         },
@@ -189,10 +196,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
           },
           // https://github.com/redhat-developer/vscode-java/issues/2130
           // include all diagnostics for the current line in the CodeActionContext params for the performance reason
-          provideCodeActions: (document, range, context, token, next) => {
+          provideCodeActions: (document, range, context, token, _) => {
             const client: LanguageClient = standardClient.getClient()
             const params: CodeActionParams = {
-              textDocument: { uri: document.uri },
+              textDocument: {uri: document.uri},
               range,
               context
             }
@@ -232,12 +239,20 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
           createLogger().error(`Failed to initialize ${extensionName} due to ${error && error.toString()}`)
           return true
         },
-        outputChannel: requireStandardServer ? new OutputInfoCollector('java-semantic') : undefined,
-        outputChannelName: 'java-semantic'
+        outputChannel: requireStandardServer ? new OutputInfoCollector('java') : undefined,
+        outputChannelName: 'java'
+      }
+
+      const detectJdksAtStart: boolean = getJavaConfiguration().get<boolean>('configuration.detectJdks')
+      if (detectJdksAtStart) {
+        const javaConfig = clientOptions.initializationOptions.settings.java
+        const userRuntimes = javaConfig.configuration.runtimes
+        javaConfig.configuration.runtimes = await addAutoDetectedJdks(userRuntimes)
+        createLogger().info(`Server configured with the following runtimes: ${JSON.stringify(javaConfig.configuration.runtimes, null, 2)}`)
       }
 
       apiManager.initialize(requirements, serverMode)
-      resolve(apiManager.getApiInstance());
+      resolve(apiManager.getApiInstance())
       // the promise is resolved
       // no need to pass `resolve` into any code past this point,
       // since `resolve` is a no-op from now on
@@ -352,7 +367,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
       context.subscriptions.push(serverStatusBarProvider)
       context.subscriptions.push(runtimeStatusBarProvider)
 
-      registerClientProviders(context, { contentProviderEvent: jdtEventEmitter.event })
+      registerClientProviders(context, {contentProviderEvent: jdtEventEmitter.event})
 
       apiManager.getApiInstance().onDidServerModeChange((event: ServerMode) => {
         if (event === ServerMode.standard) {
@@ -525,37 +540,42 @@ function enableJavadocSymbols() {
   //       // e.g. /** | */ or /* | */
   //       beforeText: /^\s*\/\*\*?(?!\/)([^\*]|\*(?!\/))*$/,
   //       afterText: /^\s*\*\/$/,
-  //       action: { indentAction: IndentAction.IndentOutdent, appendText: ' * ' }
+  //       action: {indentAction: IndentAction.IndentOutdent, appendText: ' * '}
   //     },
   //     {
   //       // e.g. /** ...|
   //       beforeText: /^\s*\/\*\*(?!\/)([^\*]|\*(?!\/))*$/,
-  //       action: { indentAction: IndentAction.None, appendText: ' * ' }
+  //       action: {indentAction: IndentAction.None, appendText: ' * '}
   //     },
   //     {
   //       // e.g.  * ...|
   //       beforeText: /^(\t|(\ \ ))*\ \*(\ ([^\*]|\*(?!\/))*)?$/,
-  //       action: { indentAction: IndentAction.None, appendText: '* ' }
+  //       action: {indentAction: IndentAction.None, appendText: '* '}
   //     },
   //     {
   //       // e.g.  */|
   //       beforeText: /^(\t|(\ \ ))*\ \*\/\s*$/,
-  //       action: { indentAction: IndentAction.None, removeText: 1 }
+  //       action: {indentAction: IndentAction.None, removeText: 1}
   //     },
   //     {
   //       // e.g.  *-----*/|
   //       beforeText: /^(\t|(\ \ ))*\ \*[^/]*\*\/\s*$/,
-  //       action: { indentAction: IndentAction.None, removeText: 1 }
+  //       action: {indentAction: IndentAction.None, removeText: 1}
+  //     },
+  //     {
+  //       // e.g. /// ...| (Markdown javadoc)
+  //       beforeText: /^\s*\/\/\/(.*)?$/,
+  //       action: {indentAction: IndentAction.None, appendText: '/// '}
   //     }
   //   ]
-  // })
+  // });
 }
 
 function getTempWorkspace() {
   return path.resolve(os.tmpdir(), `vscodesws_${makeRandomHexString(5)}`)
 }
 
-function makeRandomHexString(length) {
+function makeRandomHexString(length: number) {
   const chars = ['0', '1', '2', '3', '4', '5', '6', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f']
   let result = ''
   for (let i = 0; i < length; i++) {
@@ -565,7 +585,7 @@ function makeRandomHexString(length) {
   return result
 }
 
-async function cleanWorkspace(workspacePath, force?: boolean) {
+async function cleanWorkspace(workspacePath: string, force?: boolean) {
   if (!force) {
     const doIt = 'Reload and delete'
     const selection = await window.showWarningMessage('Are you sure you want to clean the Java language server workspace?', 'Cancel', doIt)
@@ -592,17 +612,17 @@ async function cleanSharedIndexes(context: ExtensionContext) {
   }
 }
 
-function openServerLogFile(workspacePath): Thenable<boolean> {
+function openServerLogFile(workspacePath: string): Thenable<boolean> {
   const serverLogFile = path.join(workspacePath, '.metadata', '.log')
   return openLogFile(serverLogFile, 'Could not open Java Language Server log file')
 }
 
-function openRollingServerLogFile(workspacePath, filename): Thenable<boolean> {
+function openRollingServerLogFile(workspacePath: string, filename: string): Thenable<boolean> {
   return new Promise((resolve) => {
     const dirname = path.join(workspacePath, '.metadata')
 
     // find out the newest one
-    glob(`${filename}-*`, { cwd: dirname }, (err, files) => {
+    glob(`${filename}-*`, {cwd: dirname}, (err: any, files: string[]) => {
       if (!err && files.length > 0) {
         files.sort()
 
@@ -621,7 +641,7 @@ function openClientLogFile(logFile: string): Thenable<boolean> {
     const dirname = path.dirname(logFile)
 
     // find out the newest one
-    glob(`${filename}.*`, { cwd: dirname }, (err, files) => {
+    glob(`${filename}.*`, {cwd: dirname}, (err: any, files: string[]) => {
       if (!err && files.length > 0) {
         files.sort((a, b) => {
           const dateA = a.slice(11, 21), dateB = b.slice(11, 21)
@@ -651,7 +671,7 @@ async function openLogs() {
   await commands.executeCommand(Commands.OPEN_SERVER_STDERR_LOG)
 }
 
-function openLogFile(logFile, openingFailureWarning: string): Thenable<boolean> {
+function openLogFile(logFile: string, openingFailureWarning: string): Thenable<boolean> {
   if (!fs.existsSync(logFile)) {
     return window.showWarningMessage('No log file available').then(() => false)
   }
@@ -672,7 +692,7 @@ function openLogFile(logFile, openingFailureWarning: string): Thenable<boolean> 
     })
 }
 
-async function openFormatter(extensionPath) {
+async function openFormatter(extensionPath: string) {
   const defaultFormatter = path.join(extensionPath, 'formatters', 'eclipse-formatter.xml')
   const formatterUrl: string = getJavaConfiguration().get('format.settings.url')
   if (formatterUrl && formatterUrl.length > 0) {
@@ -687,8 +707,8 @@ async function openFormatter(extensionPath) {
   }
   const global = workspace.workspaceFolders === undefined
   const fileName = formatterUrl || 'eclipse-formatter.xml'
-  let file
-  let relativePath
+  let file: string
+  let relativePath: string
   if (!global) {
     const workspacePath = Uri.parse(workspace.workspaceFolders[0].uri).fsPath
     file = path.join(workspacePath, fileName)
@@ -725,7 +745,7 @@ function getPath(f: string) {
   return null
 }
 
-function openDocument(extensionPath, formatterUrl, defaultFormatter, relativePath) {
+function openDocument(extensionPath: string, formatterUrl: string, defaultFormatter: string, relativePath: string) {
   return workspace.openTextDocument(formatterUrl)
     .then(doc => {
       if (!doc) {
@@ -745,12 +765,12 @@ function openDocument(extensionPath, formatterUrl, defaultFormatter, relativePat
     })
 }
 
-function isRemote(f) {
+function isRemote(f: string) {
   return f !== null && f.startsWith('http:/') || f.startsWith('https:/') || f.startsWith('file:/')
 }
 
-async function addFormatter(extensionPath, formatterUrl, defaultFormatter, relativePath) {
-  await window.requestInput('please enter URL or Path:', relativePath ? relativePath : formatterUrl, { position: 'center' }).then(f => {
+async function addFormatter(extensionPath: string, formatterUrl: string, defaultFormatter: string, relativePath: string) {
+  await window.requestInput('please enter URL or Path:', relativePath ? relativePath : formatterUrl, {position: 'center'}).then(f => {
     if (f) {
       const global = workspace.workspaceFolders === undefined
       if (isRemote(f)) {
@@ -888,7 +908,7 @@ async function cleanJavaWorkspaceStorage() {
 
   // find all folders of the form "redhat.java/jdt_ws/" and delete "redhat.java/"
   if (fs.existsSync(wsRoot)) {
-    new glob.Glob(`${wsRoot}/**/jdt_ws`, (_err, matches) => {
+    new glob.Glob(`${wsRoot}/**/jdt_ws`, (_err: any, matches: string[]) => {
       for (const javaWSCache of matches) {
         const entry = path.dirname(javaWSCache)
         const entryModTime = fs.statSync(entry).mtimeMs
@@ -903,7 +923,7 @@ async function cleanJavaWorkspaceStorage() {
 
 function registerOutOfMemoryDetection(storagePath: string) {
   const heapDumpFolder = getHeapDumpFolderFromSettings() || storagePath
-  chokidar.watch(`${heapDumpFolder}/java_*.hprof`, { ignoreInitial: true }).on('add', path => {
+  chokidar.watch(`${heapDumpFolder}/java_*.hprof`, {ignoreInitial: true}).on('add', path => {
     // Only clean heap dumps that are generated in the default location.
     // The default location is the extension global storage
     // This means that if users change the folder where the heap dumps are placed,

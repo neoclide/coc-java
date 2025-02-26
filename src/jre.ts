@@ -1,7 +1,7 @@
-import { ExtensionContext, download, window } from 'coc.nvim';
-import { getRuntime, JAVAC_FILENAME } from 'jdk-utils';
+import { ExtensionContext, download, window } from 'coc.nvim'
+import { getRuntime, JAVAC_FILENAME } from 'jdk-utils'
 import * as fse from 'fs-extra'
-import * as path from 'path';
+import * as path from 'path'
 import * as os from 'os'
 
 const JRE_VERSION = '17.0.8'

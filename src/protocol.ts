@@ -57,11 +57,12 @@ export enum FeatureStatus {
 export enum EventType {
   classpathUpdated = 100,
   projectsImported = 200,
+  projectsDeleted = 210,
   incompatibleGradleJdkIssue = 300,
   upgradeGradleWrapper = 400,
 }
 
-export enum CompileWorkspaceStatus {
+export enum BuildWorkspaceStatus {
   failed = 0,
   succeed = 1,
   withError = 2,
@@ -131,11 +132,11 @@ export namespace EventNotification {
 }
 
 export namespace CompileWorkspaceRequest {
-  export const type = new RequestType<boolean, CompileWorkspaceStatus, void>('java/buildWorkspace')
+  export const type = new RequestType<boolean, BuildWorkspaceStatus, void>('java/buildWorkspace')
 }
 
 export namespace BuildProjectRequest {
-  export const type = new RequestType<BuildProjectParams, CompileWorkspaceStatus, void>('java/buildProjects')
+  export const type = new RequestType<BuildProjectParams, BuildWorkspaceStatus, void>('java/buildProjects')
 }
 
 export interface BuildProjectParams {
@@ -221,6 +222,10 @@ export interface GenerateHashCodeEqualsParams {
 
 export namespace GenerateHashCodeEqualsRequest {
   export const type = new RequestType<GenerateHashCodeEqualsParams, WorkspaceEdit, void>('java/generateHashCodeEquals')
+}
+
+export namespace CleanupRequest {
+  export const type = new RequestType<TextDocumentIdentifier, WorkspaceEdit, void>('java/cleanup')
 }
 
 export namespace OrganizeImportsRequest {
@@ -356,11 +361,25 @@ export namespace GetRefactorEditRequest {
   export const type = new RequestType<GetRefactorEditParams, RefactorWorkspaceEdit, void>('java/getRefactorEdit')
 }
 
+export namespace GetChangeSignatureInfoRequest {
+  export const type = new RequestType<CodeActionParams, ChangeSignatureInfo, void>('java/getChangeSignatureInfo')
+}
+
 export interface SelectionInfo {
   name: string
   length: number
   offset: number
   params?: string[]
+}
+
+export interface ChangeSignatureInfo {
+  methodIdentifier: string
+  modifier: string
+  returnType: string
+  methodName: string
+  parameters: any
+  exceptions: any
+  errorMessage: string
 }
 
 export interface InferSelectionParams {
@@ -448,18 +467,18 @@ export interface UpgradeGradleWrapperInfo {
 }
 
 export interface Member {
-  name: string;
-  typeName: string;
-  parameters: string[];
-  handleIdentifier: string;
+  name: string
+  typeName: string
+  parameters: string[]
+  handleIdentifier: string
 }
 
 export interface CheckExtractInterfaceStatusResponse {
-  members: Member[];
-  subTypeName: string;
-  destinationResponse: MoveDestinationsResponse;
+  members: Member[]
+  subTypeName: string
+  destinationResponse: MoveDestinationsResponse
 }
 
 export namespace CheckExtractInterfaceStatusRequest {
-  export const type = new RequestType<CodeActionParams, CheckExtractInterfaceStatusResponse, void>('java/checkExtractInterfaceStatus');
+  export const type = new RequestType<CodeActionParams, CheckExtractInterfaceStatusResponse, void>('java/checkExtractInterfaceStatus')
 }

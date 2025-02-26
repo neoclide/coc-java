@@ -152,6 +152,7 @@ export namespace Commands {
    */
   export const IMPORT_PROJECTS_CMD = 'java.project.import.command'
   export const IMPORT_PROJECTS = 'java.project.import'
+  export const CHANGE_IMPORTED_PROJECTS = 'java.project.changeImportedProjects'
   /**
    * Override or implements the methods from the supertypes.
    */
@@ -164,6 +165,10 @@ export namespace Commands {
    * Open settings.json
    */
   export const OPEN_JSON_SETTINGS = 'workbench.action.openSettingsJson'
+  /**
+   * Manual action cleanup
+   */
+  export const MANUAL_CLEANUP = "java.action.doCleanup"
   /**
    * Organize imports.
    */

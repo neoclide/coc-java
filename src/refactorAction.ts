@@ -5,8 +5,10 @@ import { existsSync } from 'fs'
 import * as path from 'path'
 import { CodeActionParams } from 'vscode-languageserver-protocol'
 import { Commands as javaCommands } from './commands'
-import { GetMoveDestinationsRequest, GetRefactorEditRequest, InferSelectionRequest, MoveRequest, RefactorWorkspaceEdit, RenamePosition, SearchSymbols, SelectionInfo } from './protocol'
-import { getExtractInterfaceArguments, revealExtractedInterface } from './refactoring/extractInterface';
+import { ChangeSignatureInfo, GetChangeSignatureInfoRequest, GetMoveDestinationsRequest, GetRefactorEditRequest, InferSelectionRequest, MoveRequest, RefactorWorkspaceEdit, RenamePosition, SearchSymbols, SelectionInfo } from './protocol'
+import { renderChangeSignaturePanel } from './refactoring/changeSignature'
+import { getExtractInterfaceArguments, revealExtractedInterface } from './refactoring/extractInterface'
+import { applyRefactorEdit } from './standardLanguageClientUtils'
 
 export function registerCommands(languageClient: LanguageClient, context: ExtensionContext) {
   registerApplyRefactorCommand(languageClient, context)
@@ -40,6 +42,7 @@ function registerApplyRefactorCommand(languageClient: LanguageClient, context: E
       || command === 'extractField'
       || command === 'extractInterface'
       || command === 'assignField'
+      || command === 'changeSignature'
       || command === 'convertVariableToField'
       || command === 'invertVariable'
       || command === 'introduceParameter'
@@ -103,11 +106,19 @@ function registerApplyRefactorCommand(languageClient: LanguageClient, context: E
           commandArguments.push(expression)
         }
       } else if (command === 'extractInterface') {
-        const args = await getExtractInterfaceArguments(languageClient, params);
+        const args = await getExtractInterfaceArguments(languageClient, params)
         if (args.length === 0) {
-          return;
+          return
         }
-        commandArguments.push(...args);
+        commandArguments.push(...args)
+      } else if (command === 'changeSignature') {
+        const changeSignatureInfo: ChangeSignatureInfo = await languageClient.sendRequest(GetChangeSignatureInfoRequest.type, params)
+        if (changeSignatureInfo.errorMessage !== undefined) {
+          window.showWarningMessage(changeSignatureInfo.errorMessage)
+          return
+        }
+        await renderChangeSignaturePanel(languageClient, command, params, formattingOptions, changeSignatureInfo)
+        return
       }
 
       const result: RefactorWorkspaceEdit = await languageClient.sendRequest(GetRefactorEditRequest.type, {
@@ -118,14 +129,14 @@ function registerApplyRefactorCommand(languageClient: LanguageClient, context: E
       })
 
       await applyRefactorEdit(languageClient, result)
+
       if (command === 'extractInterface') {
-        await revealExtractedInterface(result);
+        await revealExtractedInterface(result)
       }
     } else if (command === 'moveFile') {
-      if (!commandInfo || !commandInfo.uri) {
+      if (!commandInfo?.uri) {
         return
       }
-
       await moveFile(languageClient, [Uri.parse(commandInfo.uri)])
     } else if (command === 'moveInstanceMethod') {
       await moveInstanceMethod(languageClient, params, commandInfo)
@@ -211,33 +222,6 @@ interface IExpressionItem extends QuickPickItem {
   length: number
   offset: number
   params?: string[]
-}
-
-async function applyRefactorEdit(languageClient: LanguageClient, refactorEdit: RefactorWorkspaceEdit) {
-  if (!refactorEdit) {
-    return
-  }
-
-  if (refactorEdit.errorMessage) {
-    window.showErrorMessage(refactorEdit.errorMessage)
-    return
-  }
-
-  if (refactorEdit.edit) {
-    const edit = refactorEdit.edit
-    if (edit) {
-      await workspace.applyEdit(edit)
-    }
-  }
-
-  if (refactorEdit.command) {
-    await new Promise(resolve => setTimeout(resolve, 400))
-    if (refactorEdit.command.arguments) {
-      await commands.executeCommand(refactorEdit.command.command, ...refactorEdit.command.arguments)
-    } else {
-      await commands.executeCommand(refactorEdit.command.command)
-    }
-  }
 }
 
 async function moveFile(languageClient: LanguageClient, fileUris: Uri[]) {
