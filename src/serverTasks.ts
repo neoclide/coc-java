@@ -1,8 +1,6 @@
 import { Emitter } from 'coc.nvim'
 import { ProgressReport } from './protocol'
 
-const findIndex = require("lodash.findindex")
-
 let tasks: ProgressReport[] = []
 
 const emitter = new Emitter<ProgressReport[]>()
@@ -59,7 +57,7 @@ function recycleTasks(tasks: ProgressReport[], length: number) {
 }
 
 function applyReport(report: ProgressReport) {
-  const index = findIndex(tasks, task => task.id === report.id)
+  const index = tasks.findIndex(o => o.id = report.id)
   if (index === -1) {
     tasks.push(report)
   } else {

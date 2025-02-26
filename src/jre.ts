@@ -54,6 +54,8 @@ export function checkJavac(javaHome: string): boolean {
 export async function checkAndDownloadJRE(context: ExtensionContext): Promise<string | undefined> {
   let packageName = getPackageName()
   if (!packageName) return undefined
+  console.log('====')
+  console.log(`${packageName}/-/${packageName}-${JRE_VERSION}.tgz`)
   let javaHome = path.join(context.storagePath, `jdk-${JRE_VERSION}`, packageName, 'jre')
   if (checkJavac(javaHome)) return javaHome
   let folder = path.resolve(javaHome, '..')
