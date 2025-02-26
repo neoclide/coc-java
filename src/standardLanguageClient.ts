@@ -681,7 +681,7 @@ async function showImportFinishNotification(context: ExtensionContext) {
     } else if (choice === "View projects") {
       commands.executeCommand("javaProjectExplorer.focus")
     } else if (choice === "Show errors") {
-      commands.executeCommand("workbench.panel.markers.view.focus")
+      workspace.nvim.command('CocList diagnostics', true)
     }
   }
 }
@@ -771,22 +771,22 @@ function isParentFolder(folder: string, filepath: string): boolean {
 }
 
 function formatDate(date: Date): string {
-    // Weekday names
-    const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    // Month names
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  // Weekday names
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  // Month names
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-    // Extract components
-    const dayOfWeek = weekdays[date.getDay()];
-    const month = months[date.getMonth()];
-    const dayOfMonth = date.getDate();
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const seconds = date.getSeconds().toString().padStart(2, '0');
-    const year = date.getFullYear();
+  // Extract components
+  const dayOfWeek = weekdays[date.getDay()];
+  const month = months[date.getMonth()];
+  const dayOfMonth = date.getDate();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  const year = date.getFullYear();
 
-    // Format the date string
-    return `${dayOfWeek} ${month} ${dayOfMonth} ${hours}:${minutes}:${seconds} ${year}`;
+  // Format the date string
+  return `${dayOfWeek} ${month} ${dayOfMonth} ${hours}:${minutes}:${seconds} ${year}`;
 }
 
 export function showNoLocationFound(message: string): void {
