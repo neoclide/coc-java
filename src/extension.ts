@@ -1,33 +1,34 @@
 'use strict'
 
 import * as chokidar from 'chokidar'
-import {CancellationToken, CodeActionContext, CodeActionTriggerKind, commands, ConfigurationTarget, Diagnostic, Document, Emitter, events, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, RelativePattern, RevealOutputChannelOn, Uri, window, workspace, WorkspaceConfiguration} from 'coc.nvim'
-import {createHash} from 'crypto'
+import { CancellationToken, CodeActionContext, CodeActionTriggerKind, commands, ConfigurationTarget, Diagnostic, Document, Emitter, events, ExtensionContext, extensions, LanguageClient, LanguageClientOptions, RelativePattern, RevealOutputChannelOn, Uri, window, workspace, WorkspaceConfiguration } from 'coc.nvim'
+import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as fse from 'fs-extra'
 import * as os from 'os'
 import * as path from 'path'
-import {CodeActionParams, CodeActionRequest, DidChangeConfigurationNotification, ExecuteCommandParams, ExecuteCommandRequest} from 'vscode-languageserver-protocol'
-import {apiManager} from './apiManager'
-import {ClientErrorHandler} from './clientErrorHandler'
-import {Commands} from './commands'
-import {ClientStatus, ExtensionAPI} from './extension.api'
+import * as semver from 'semver'
+import { CodeActionParams, CodeActionRequest, DidChangeConfigurationNotification, ExecuteCommandParams, ExecuteCommandRequest } from 'vscode-languageserver-protocol'
+import { apiManager } from './apiManager'
+import { ClientErrorHandler } from './clientErrorHandler'
+import { Commands } from './commands'
+import { ClientStatus, ExtensionAPI } from './extension.api'
 import * as fileEventHandler from './fileEventHandler'
-import {getSharedIndexCache, HEAP_DUMP_LOCATION, prepareExecutable} from './javaServerStarter'
-import {createLogger, initializeLogFile} from './log'
-import {cleanupLombokCache} from "./lombokSupport"
-import {markdownPreviewProvider} from "./markdownPreviewProvider"
-import {OutputInfoCollector} from './outputInfoCollector'
-import {collectJavaExtensions, getBundlesToReload} from './plugin'
-import {registerClientProviders} from './providerDispatcher'
-import {initialize as initializeRecommendation} from './recommendation'
+import { getSharedIndexCache, HEAP_DUMP_LOCATION, prepareExecutable, removeEquinoxFragmentOnDarwinX64 } from './javaServerStarter'
+import { createLogger, initializeLogFile } from './log'
+import { cleanupLombokCache } from "./lombokSupport"
+import { markdownPreviewProvider } from "./markdownPreviewProvider"
+import { OutputInfoCollector } from './outputInfoCollector'
+import { collectJavaExtensions, getBundlesToReload } from './plugin'
+import { registerClientProviders } from './providerDispatcher'
+import { initialize as initializeRecommendation } from './recommendation'
 import * as requirements from './requirements'
-import {runtimeStatusBarProvider} from './runtimeStatusBarProvider'
-import {serverStatusBarProvider} from './serverStatusBarProvider'
-import {ACTIVE_BUILD_TOOL_STATE, cleanWorkspaceFileName, getJavaServerMode, onConfigurationChange, ServerMode} from './settings'
-import {StandardLanguageClient} from './standardLanguageClient'
-import {SyntaxLanguageClient} from './syntaxLanguageClient'
-import {addAutoDetectedJdks, convertToGlob, deleteDirectory, ensureExists, getBuildFilePatterns, getExclusionBlob, getInclusionPatternsFromNegatedExclusion, getJavaConfig, getJavaConfiguration, hasBuildToolConflicts, rangeIntersect} from './utils'
+import { runtimeStatusBarProvider } from './runtimeStatusBarProvider'
+import { serverStatusBarProvider } from './serverStatusBarProvider'
+import { ACTIVE_BUILD_TOOL_STATE, cleanWorkspaceFileName, getJavaServerMode, onConfigurationChange, ServerMode } from './settings'
+import { StandardLanguageClient } from './standardLanguageClient'
+import { SyntaxLanguageClient } from './syntaxLanguageClient'
+import { addAutoDetectedJdks, convertToGlob, deleteDirectory, ensureExists, getBuildFilePatterns, getExclusionBlob, getInclusionPatternsFromNegatedExclusion, getJavaConfig, getJavaConfiguration, hasBuildToolConflicts, rangeIntersect } from './utils'
 import glob = require('glob')
 
 const syntaxClient: SyntaxLanguageClient = new SyntaxLanguageClient()
@@ -111,6 +112,17 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
 
   serverStatusBarProvider.initialize(context)
 
+  // https://github.com/redhat-developer/vscode-java/issues/3484
+  if (process.platform === 'darwin' && process.arch === 'x64') {
+    try {
+      if (semver.lt(os.release(), '20.0.0')) {
+        removeEquinoxFragmentOnDarwinX64(context);
+      }
+    } catch (error) {
+      // do nothing
+    }
+  }
+
   return requirements.resolveRequirements(context).catch(error => {
     // show error
     window.showErrorMessage(error.message, error.label).then((selection) => {
@@ -141,9 +153,9 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
       const clientOptions: LanguageClientOptions = {
         // Register the server for java
         documentSelector: [
-          {scheme: 'file', language: 'java'},
-          {scheme: 'jdt', language: 'java'},
-          {scheme: 'untitled', language: 'java'}
+          { scheme: 'file', language: 'java' },
+          { scheme: 'jdt', language: 'java' },
+          { scheme: 'untitled', language: 'java' }
         ],
         synchronize: {
           configurationSection: ['java'],
@@ -199,7 +211,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
           provideCodeActions: (document, range, context, token, _) => {
             const client: LanguageClient = standardClient.getClient()
             const params: CodeActionParams = {
-              textDocument: {uri: document.uri},
+              textDocument: { uri: document.uri },
               range,
               context
             }
@@ -367,7 +379,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
       context.subscriptions.push(serverStatusBarProvider)
       context.subscriptions.push(runtimeStatusBarProvider)
 
-      registerClientProviders(context, {contentProviderEvent: jdtEventEmitter.event})
+      registerClientProviders(context, { contentProviderEvent: jdtEventEmitter.event })
 
       apiManager.getApiInstance().onDidServerModeChange((event: ServerMode) => {
         if (event === ServerMode.standard) {
@@ -622,7 +634,7 @@ function openRollingServerLogFile(workspacePath: string, filename: string): Then
     const dirname = path.join(workspacePath, '.metadata')
 
     // find out the newest one
-    glob(`${filename}-*`, {cwd: dirname}, (err: any, files: string[]) => {
+    glob(`${filename}-*`, { cwd: dirname }, (err: any, files: string[]) => {
       if (!err && files.length > 0) {
         files.sort()
 
@@ -641,7 +653,7 @@ function openClientLogFile(logFile: string): Thenable<boolean> {
     const dirname = path.dirname(logFile)
 
     // find out the newest one
-    glob(`${filename}.*`, {cwd: dirname}, (err: any, files: string[]) => {
+    glob(`${filename}.*`, { cwd: dirname }, (err: any, files: string[]) => {
       if (!err && files.length > 0) {
         files.sort((a, b) => {
           const dateA = a.slice(11, 21), dateB = b.slice(11, 21)
@@ -770,7 +782,7 @@ function isRemote(f: string) {
 }
 
 async function addFormatter(extensionPath: string, formatterUrl: string, defaultFormatter: string, relativePath: string) {
-  await window.requestInput('please enter URL or Path:', relativePath ? relativePath : formatterUrl, {position: 'center'}).then(f => {
+  await window.requestInput('please enter URL or Path:', relativePath ? relativePath : formatterUrl, { position: 'center' }).then(f => {
     if (f) {
       const global = workspace.workspaceFolders === undefined
       if (isRemote(f)) {
@@ -923,7 +935,7 @@ async function cleanJavaWorkspaceStorage() {
 
 function registerOutOfMemoryDetection(storagePath: string) {
   const heapDumpFolder = getHeapDumpFolderFromSettings() || storagePath
-  chokidar.watch(`${heapDumpFolder}/java_*.hprof`, {ignoreInitial: true}).on('add', path => {
+  chokidar.watch(`${heapDumpFolder}/java_*.hprof`, { ignoreInitial: true }).on('add', path => {
     // Only clean heap dumps that are generated in the default location.
     // The default location is the extension global storage
     // This means that if users change the folder where the heap dumps are placed,

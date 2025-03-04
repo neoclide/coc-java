@@ -1,16 +1,17 @@
 'use strict'
 
-import {Executable, ExecutableOptions, ExtensionContext, StreamInfo, workspace} from 'coc.nvim'
+import { Executable, ExecutableOptions, ExtensionContext, StreamInfo, workspace } from 'coc.nvim'
 import * as fs from 'fs'
+import * as fse from 'fs-extra'
 import * as glob from 'glob'
 import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
-import {createLogger} from './log'
-import {addLombokParam, isLombokSupportEnabled} from './lombokSupport'
-import {RequirementsData} from './requirements'
-import {getJavaagentFlag, getJavaEncoding, getKey, isInWorkspaceFolder, IS_WORKSPACE_VMARGS_ALLOWED} from './settings'
-import {deleteDirectory, ensureExists, getJavaConfiguration, getTimestamp} from './utils'
+import { createLogger } from './log'
+import { addLombokParam, isLombokSupportEnabled } from './lombokSupport'
+import { RequirementsData } from './requirements'
+import { getJavaagentFlag, getJavaEncoding, getKey, isInWorkspaceFolder, IS_WORKSPACE_VMARGS_ALLOWED } from './settings'
+import { deleteDirectory, ensureExists, getJavaConfiguration, getTimestamp } from './utils'
 
 declare var v8debug
 const DEBUG = (typeof v8debug === 'object') || startedInDebugMode()
@@ -28,7 +29,7 @@ export const HEAP_DUMP = '-XX:+HeapDumpOnOutOfMemoryError'
 export function prepareExecutable(requirements: RequirementsData, workspacePath, javaConfig, context: ExtensionContext, isSyntaxServer: boolean): Executable {
   const executable: Executable = Object.create(null)
   const options: ExecutableOptions = Object.create(null)
-  options.env = Object.assign({syntaxserver: isSyntaxServer}, process.env)
+  options.env = Object.assign({ syntaxserver: isSyntaxServer }, process.env)
   if (os.platform() === 'win32') {
     const vmargs = getJavaConfiguration().get('jdt.ls.vmargs', '')
     const watchParentProcess = '-DwatchParentProcess=false'
@@ -48,7 +49,7 @@ export function awaitServerConnection(port): Thenable<StreamInfo> {
     const server = net.createServer(stream => {
       server.close()
       createLogger().info(`JDT LS connection established on port ${addr}`)
-      res({reader: stream, writer: stream})
+      res({ reader: stream, writer: stream })
     })
     server.on('error', rej)
     server.listen(addr, () => {
@@ -182,7 +183,7 @@ function prepareParams(requirements: RequirementsData, javaConfiguration, worksp
     }
   }
   const serverHome = directory ? directory : path.resolve(__dirname, '../server')
-  const launchersFound: Array<string> = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', {cwd: serverHome})
+  const launchersFound: Array<string> = glob.sync('**/plugins/org.eclipse.equinox.launcher_*.jar', { cwd: serverHome })
   if (launchersFound.length) {
     params.push('-jar'); params.push(path.resolve(serverHome, launchersFound[0]))
   } else {
@@ -319,11 +320,21 @@ export function parseVMargs(params: any[], vmargsLine: string) {
   }
   vmargs.forEach(arg => {
     // remove all standalone double quotes
-    arg = arg.replace(/(\\)?"/g, ($0, $1) => {return ($1 ? $0 : '')})
+    arg = arg.replace(/(\\)?"/g, ($0, $1) => { return ($1 ? $0 : '') })
     // unescape all escaped double quotes
     arg = arg.replace(/(\\)"/g, '"')
     if (params.indexOf(arg) < 0) {
       params.push(arg)
     }
   })
+}
+
+export function removeEquinoxFragmentOnDarwinX64(context: ExtensionContext) {
+  // https://github.com/redhat-developer/vscode-java/issues/3484
+  const extensionPath = context.extensionPath
+  const matches = new glob.GlobSync(`${extensionPath}/server/plugins/org.eclipse.equinox.launcher.cocoa.macosx.x86_64*.jar`).found
+  for (const fragment of matches) {
+    fse.removeSync(fragment)
+    createLogger().info(`Removing Equinox launcher fragment : ${fragment}`)
+  }
 }
