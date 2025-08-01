@@ -1,6 +1,6 @@
 {
   "name": "coc-java",
-  "version": "1.26.5",
+  "version": "1.26.6",
   "description": "Java language extension for coc.nvim",
   "main": "lib/index.js",
   "publisher": "chemzqm",
