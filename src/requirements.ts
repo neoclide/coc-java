@@ -38,12 +38,13 @@ export async function resolveRequirements(context: ExtensionContext): Promise<Re
     let toolingJreVersion: number = 0;
 
     // search valid JDKs from env.JAVA_HOME, env.PATH, SDKMAN, jEnv, jabba, Common directories
-    const requiredJdkVersion = "on" === getJavaConfiguration().get("jdt.ls.javac.enabled") ? 23 : 17;
+    const requiredJdkVersion = "on" === getJavaConfiguration().get("jdt.ls.javac.enabled") ? 23 : 21;
     const javaPreferences = await checkJavaPreferences(context);
 
     let javaSettingsRuntimes = await getRuntimeFromSettings();
     let javaSystemRuntimes = await findRuntimes({ checkJavac: true, withVersion: true, withTags: true });
 
+    // sort in ascending order the versions from both system & settings
     javaSystemRuntimes = sortJdksByVersion(javaSystemRuntimes || []);
     javaSettingsRuntimes = sortJdksByVersion(javaSettingsRuntimes || []);
 
@@ -55,12 +56,12 @@ export async function resolveRequirements(context: ExtensionContext): Promise<Re
       toolingJreVersion = javaVersion;
       if (toolingJreVersion < requiredJdkVersion) {
         const neverShow: boolean | undefined = context.workspaceState.get<boolean>(
-          "java.home.failsMinRequiredFirstTime",
+          "java.home.failsMinRequiredFirstTime"
         );
         if (!neverShow) {
           context.workspaceState.update("java.home.failsMinRequiredFirstTime", true);
           window.showInformationMessage(
-            `The Java runtime set with 'java.jdt.ls.java.home' does not meet the minimum required version of '${requiredJdkVersion}' and will not be used.`,
+            `The Java runtime set with 'java.jdt.ls.java.home' does not meet the minimum required version of '${requiredJdkVersion}' and will not be used.`
           );
         }
         toolingJre = undefined;
@@ -71,14 +72,16 @@ export async function resolveRequirements(context: ExtensionContext): Promise<Re
     if (!toolingJre || toolingJreVersion < requiredJdkVersion) {
       let filtered = javaSettingsRuntimes.filter((r) => r.version.major >= requiredJdkVersion);
       if (filtered.length) {
-        toolingJre = javaSettingsRuntimes[0].homedir;
-        toolingJreVersion = javaSettingsRuntimes[0].version?.major;
+        // using the closest to the requiredJdkVersion entry
+        toolingJre = filtered[filtered.length - 1].homedir;
+        toolingJreVersion = filtered[filtered.length - 1].version?.major;
       }
 
       filtered = javaSystemRuntimes.filter((r) => r.version.major >= requiredJdkVersion);
       if (filtered.length && toolingJreVersion < requiredJdkVersion) {
-        toolingJre = javaSystemRuntimes[0].homedir;
-        toolingJreVersion = javaSystemRuntimes[0].version?.major;
+        // using the closest to the requiredJdkVersion entry
+        toolingJre = filtered[filtered.length - 1].homedir;
+        toolingJreVersion = filtered[filtered.length - 1].version?.major;
       }
 
       if (toolingJreVersion < requiredJdkVersion) {
@@ -92,7 +95,7 @@ export async function resolveRequirements(context: ExtensionContext): Promise<Re
     } else {
       openJDKDownload(
         reject,
-        `Java ${requiredJdkVersion} or more recent is required to run the Java extension. Please download and install a recent JDK. You can still compile your projects with older JDKs by configuring ['java.configuration.runtimes'](https://github.com/redhat-developer/vscode-java/wiki/JDK-Requirements#java.configuration.runtimes)`,
+        `Java ${requiredJdkVersion} or more recent is required to run the Java extension. Please download and install a recent JDK. You can still compile your projects with older JDKs by configuring ['java.configuration.runtimes'](https://github.com/redhat-developer/vscode-java/wiki/JDK-Requirements#java.configuration.runtimes)`
       );
     }
 
@@ -103,25 +106,21 @@ export async function resolveRequirements(context: ExtensionContext): Promise<Re
       javaHome = defaultRuntimes[0].homedir;
       javaVersion = defaultRuntimes[0].version.major;
       createLogger().info(
-        "Using the default JDK from `java.configuration.runtimes` as the initial default project JDK.",
+        `Using the default JDK from java.configuration.runtimes - '${javaHome}' as the initial default project JDK.`
       );
     } else if (javaPreferences.javaHome) {
       createLogger().info(
-        `Using the JDK from '${javaPreferences.javaHome}' setting as the initial default project JDK.`,
+        `Using the JDK from user preferences ${javaPreferences.preference} - '${javaPreferences.javaHome}' as the initial default project JDK.`
       );
       javaHome = javaPreferences.javaHome;
-    } else if (javaSystemRuntimes.length) {
-      javaHome = javaSystemRuntimes[0].homedir;
-      javaVersion = javaSystemRuntimes[0].version?.major;
-      createLogger().info(`Using the JDK from '${javaHome}' as the initial default project JDK.`);
     } else if (toolingJre) {
       javaHome = toolingJre;
       javaVersion = toolingJreVersion;
-      createLogger().info(`Using the tooling JDK from '${javaHome}' as the default project JDK.`);
+      createLogger().info(`Using the resolved tooling JDK from '${javaHome}' as the default project JDK.`);
     } else {
       openJDKDownload(
         reject,
-        "Please download and install a JDK to compile your project. You can configure your projects with different JDKs by the setting ['java.configuration.runtimes'](https://github.com/redhat-developer/vscode-java/wiki/JDK-Requirements#java.configuration.runtimes)",
+        "Please download and install a JDK to compile your project. You can configure your projects with different JDKs by the setting ['java.configuration.runtimes'](https://github.com/redhat-developer/vscode-java/wiki/JDK-Requirements#java.configuration.runtimes)"
       );
     }
 
@@ -151,22 +150,13 @@ export async function resolveRequirements(context: ExtensionContext): Promise<Re
   });
 }
 
-function expand(input: string): string {
+function expand(input: string): string | undefined {
   return input.replace(/\$\{(.*?)\}/g, (match: string, name: string) => {
     if (name.startsWith("env:")) {
       let key = name.split(":")[1];
       return process.env[key] ?? match;
     }
-    switch (name) {
-      case "tmpdir":
-        return os.tmpdir();
-      case "userHome":
-        return os.homedir();
-      case "cwd":
-        return process.cwd();
-      default:
-        return match;
-    }
+    return undefined;
   });
 }
 
@@ -183,7 +173,7 @@ async function getRuntimeFromSettings(): Promise<any[] | undefined> {
       if (!runtime || typeof runtime !== "object" || !runtime.path) {
         continue;
       }
-      const path = runtime && runtime.path && expand(runtime.path)
+      const path = runtime && runtime.path && expand(runtime.path);
       const jr: IJavaRuntime = await getRuntime(path, options);
       if (jr !== undefined) {
         candidates.push({
@@ -213,7 +203,7 @@ export async function listJdks(force?: boolean): Promise<IJavaRuntime[]> {
           existsSync(path.join(jdk.homedir, "jre", "lib", "rt.jar")) || // Java 8
           existsSync(path.join(jdk.homedir, "lib", "jrt-fs.jar"))
         ); // Java 9+
-      }),
+      })
     );
   }
 
