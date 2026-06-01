@@ -16,7 +16,7 @@ const supported_platforms = [
   'macosx-aarch64',
   'macosx-x86_64',
   'win32-aarch64',
-  'win32-x86_64'
+  'win32-x86_64',
 ]
 const baseURL = 'https://download.eclipse.org'
 
@@ -52,7 +52,6 @@ export function getDownloadUrl(): string {
       break
     default:
       throw new Error('Unsupported  CPU architecture: ' + process.arch)
-
   }
   let platform = prefix + '-' + arch
   if (!supported_platforms.includes(platform)) throw new Error('Unsupported platform: ' + process.platform)
@@ -83,7 +82,7 @@ export function checkJavac(javaHome: string): boolean {
 }
 
 export async function checkAndDownloadJRE(context: ExtensionContext): Promise<string | undefined> {
-  let javaHome
+  let javaHome: string = undefined
   let packageName = getPackageName()
   if (packageName) {
     // use old jdk 17 when exists
@@ -104,14 +103,18 @@ export async function checkAndDownloadJRE(context: ExtensionContext): Promise<st
 
   const tmpfolder = fs.mkdtempSync(path.join(os.tmpdir(), 'coc-java-'))
   await window.withProgress({ title: `Installing jre from ${baseURL}` }, (progress, token) => {
-    return download(url, {
-      dest: tmpfolder,
-      extract: 'untar',
-      strip: 0,
-      onProgress: percent => {
-        progress.report({ message: `Downloaded ${percent}%` })
-      }
-    }, token)
+    return download(
+      url,
+      {
+        dest: tmpfolder,
+        extract: 'untar',
+        strip: 0,
+        onProgress: (percent) => {
+          progress.report({ message: `Downloaded ${percent}%` })
+        },
+      },
+      token,
+    )
   })
   fse.moveSync(tmpfolder, javaHome, { overwrite: true })
   if (checkJavac(javaHome)) {
