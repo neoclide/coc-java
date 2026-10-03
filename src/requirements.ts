@@ -11,9 +11,9 @@ import { createLogger } from './log'
 import { checkJavaPreferences } from './settings'
 import { existsSync } from 'fs'
 import { getJavaConfiguration } from './utils'
+import packageJson from '../package.json'
 
 let cachedJdks: IJavaRuntime[]
-let cachedJreNames: string[]
 
 export interface RequirementsData {
   tooling_jre: string
@@ -63,13 +63,10 @@ export async function resolveRequirements(
     const javaPreferences = await dependencies.checkJavaPreferences(context)
 
     let javaSettingsRuntimes = await dependencies.getRuntimeFromSettings()
-    let javaSystemRuntimes = await dependencies.findRuntimes({ checkJavac: true, withVersion: true, withTags: true })
 
-    // sort in ascending order the versions from both system & settings
-    javaSystemRuntimes = sortJdksByVersion(javaSystemRuntimes || [])
+    // Preserve configured runtime precedence before scanning system JDKs.
     javaSettingsRuntimes = sortJdksByVersion(javaSettingsRuntimes || [])
 
-    createLogger().info(`Resolving from system runtimes: ${JSON.stringify(javaSystemRuntimes, null, 2)}`)
     createLogger().info(`Resolving from configured runtimes: ${JSON.stringify(javaSettingsRuntimes, null, 2)}`)
 
     if (javaPreferences?.javaHome) {
@@ -93,6 +90,8 @@ export async function resolveRequirements(
     }
 
     if (!toolingJre || toolingJreVersion < requiredJdkVersion) {
+      const javaSystemRuntimes = sortJdksByVersion(await dependencies.findRuntimes({ checkJavac: true, withVersion: true, withTags: true }) || [])
+      createLogger().info(`Resolving from system runtimes: ${JSON.stringify(javaSystemRuntimes, null, 2)}`)
       let filtered = javaSettingsRuntimes.filter((runtime) => isRuntimeVersionInRange(runtime, requiredJdkVersion))
       if (filtered.length) {
         // using the closest to the requiredJdkVersion entry
@@ -228,7 +227,7 @@ async function getRuntimeFromSettings(): Promise<any[] | undefined> {
 }
 
 export function getSupportedJreNames(): string[] {
-  return cachedJreNames
+  return packageJson.contributes.configuration.properties['java.configuration.runtimes'].items.properties.name.enum
 }
 
 export async function listJdks(force?: boolean): Promise<IJavaRuntime[]> {

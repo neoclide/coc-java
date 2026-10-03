@@ -203,6 +203,12 @@ export function addJavacParams(params: string[], completionEngine?: string): voi
   }
 }
 
+export function addMavenProjectCacheParams(params: string[], size: unknown, vmargs: string): void {
+  if (!vmargs.includes('-Dm2e.project.cache.size') && typeof size === 'number' && Number.isInteger(size) && size > 0) {
+    params.push(`-Dm2e.project.cache.size=${size}`)
+  }
+}
+
 export function addAppCDSParams(
   params: string[],
   mode: string,
@@ -215,7 +221,8 @@ export function addAppCDSParams(
   const enabled = mode === 'on' || (mode === 'auto' && isPreRelease)
   // The upstream feature assumes its Java 21 minimum. coc-java still supports
   // Java 17 for the bundled JDT LS, where this VM option is unavailable.
-  if (!enabled || toolingJreVersion < 21 || !storagePath || vmargs.includes(SHARED_ARCHIVE_FILE_LOC)
+  // Java 26 removes the AllowArchivingWithJavaAgent option used below.
+  if (!enabled || toolingJreVersion < 21 || toolingJreVersion >= 26 || !storagePath || vmargs.includes(SHARED_ARCHIVE_FILE_LOC)
     || params.some(param => param.includes('jdwp'))) {
     return
   }
@@ -307,6 +314,7 @@ export function prepareParams(requirements: RequirementsData, workspacePath, con
   } else {
     vmargs = ''
   }
+  addMavenProjectCacheParams(params, getJavaConfiguration().get('jdt.ls.mavenProjectCacheSize'), vmargs)
   const encodingKey = '-Dfile.encoding='
   if (vmargs.indexOf(encodingKey) < 0) {
     params.push(encodingKey + getJavaEncoding())

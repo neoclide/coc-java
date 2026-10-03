@@ -10,6 +10,7 @@ import { OutputInfoCollector } from './outputInfoCollector'
 import { ExecuteClientCommandRequest, StatusNotification } from './protocol'
 import { ServerMode } from './settings'
 import { getJavaConfig } from './utils'
+import { updateAutoDetectedJdks } from './runtimeConfiguration'
 
 const extensionName = "Language Support for Java (Syntax Server)"
 
@@ -53,6 +54,7 @@ export class SyntaxLanguageClient {
 
     if (serverOptions) {
       this.languageClient = new LanguageClient('java', extensionName, serverOptions, newClientOptions)
+      void updateAutoDetectedJdks(this.languageClient, requirements.java_home)
 
       // TODO: Currently only resolve the promise when the server mode is explicitly set to lightweight.
       // This is to avoid breakings

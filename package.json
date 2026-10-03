@@ -761,7 +761,8 @@
                   "JavaSE-23",
                   "JavaSE-24",
                   "JavaSE-25",
-                  "JavaSE-26"
+                  "JavaSE-26",
+                  "JavaSE-27"
                 ],
                 "description": "Java Execution Environment name. Must be unique."
               },
@@ -1291,6 +1292,26 @@
           "default": "ask",
           "markdownDescription": "Specifies whether to reload the sources of the open class files when their source jar files are changed.",
           "scope": "window"
+        },
+        "java.jdt.ls.mavenProjectCacheSize": {
+          "type": [
+            "integer"
+          ],
+          "minimum": 1,
+          "default": 50,
+          "description": "Specifies the size of the in-memory Maven project cache to use. Increasing the project cache size will help load multi-module projects and monorepos faster, but will result in a significant increase in memory usage.",
+          "scope": "machine-overridable",
+          "order": 20
+        },
+        "java.classpath.variables": {
+          "type": "array",
+          "description": "Set of classpath variable strings of the form: \"name=path\" that are used to resolve classpath entries.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_$][a-zA-Z0-9_$]*=.*$"
+          },
+          "scope": "window",
+          "default": []
         }
       }
     },
