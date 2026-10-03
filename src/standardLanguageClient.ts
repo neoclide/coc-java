@@ -29,11 +29,12 @@ import { serverStatus, ServerStatusKind } from "./serverStatus"
 import { serverStatusBarProvider } from "./serverStatusBarProvider"
 import { activationProgressNotification, serverTaskPresenter } from "./serverTaskPresenter"
 import { serverTasks } from "./serverTasks"
-import { excludeProjectSettingsFiles, ServerMode, setGradleWrapperChecksum } from "./settings"
+import { ACTIVE_BUILD_TOOL_STATE, excludeProjectSettingsFiles, ServerMode, setGradleWrapperChecksum } from "./settings"
 import * as sourceAction from './sourceAction'
 import { askForProjects, projectConfigurationUpdate, upgradeGradle } from "./standardLanguageClientUtils"
 import { TypeHierarchyDirection, TypeHierarchyItem } from "./typeHierarchy/protocol"
 import { typeHierarchyTree } from "./typeHierarchy/typeHierarchyTree"
+import { updateAutoDetectedJdks } from "./runtimeConfiguration"
 import { getAllJavaProjects, getAllProjects, getJavaConfig, getJavaConfiguration } from "./utils"
 
 const extensionName = 'Language Support for Java'
@@ -108,6 +109,9 @@ export class StandardLanguageClient {
     // Create the language client and start the client.
     this.languageClient = new LanguageClient('java', extensionName, serverOptions, clientOptions)
     services.registerLanguageClient(this.languageClient)
+    void updateAutoDetectedJdks(this.languageClient, requirements.java_home, {
+      activeBuildTool: context.workspaceState.get<string>(ACTIVE_BUILD_TOOL_STATE),
+    })
 
     this.languageClient.onReady().then(() => {
       activationProgressNotification.showProgress()

@@ -32,7 +32,7 @@ import { ACTIVE_BUILD_TOOL_STATE, cleanWorkspaceFileName, getImportMode, getJava
 import { prepareSnippetCodeAction } from './snippetEdit'
 import { StandardLanguageClient } from './standardLanguageClient'
 import { SyntaxLanguageClient } from './syntaxLanguageClient'
-import { addAutoDetectedJdks, convertToGlob, deleteDirectory, ensureExists, getBuildFilePatterns, getExclusionGlob, getInclusionPatternsFromNegatedExclusion, getJavaConfig, getJavaConfiguration, hasBuildToolConflicts, rangeIntersect, resolveActualCause } from './utils'
+import { convertToGlob, deleteDirectory, ensureExists, getBuildFilePatterns, getExclusionGlob, getInclusionPatternsFromNegatedExclusion, getJavaConfig, getJavaConfiguration, hasBuildToolConflicts, rangeIntersect, resolveActualCause } from './utils'
 import { glob } from 'glob'
 
 const syntaxClient: SyntaxLanguageClient = new SyntaxLanguageClient()
@@ -303,14 +303,6 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
         },
         outputChannel: requireStandardServer ? new OutputInfoCollector('java') : undefined,
         outputChannelName: 'java'
-      }
-
-      const detectJdksAtStart: boolean = getJavaConfiguration().get<boolean>('configuration.detectJdks')
-      if (detectJdksAtStart) {
-        const javaConfig = clientOptions.initializationOptions.settings.java
-        const userRuntimes = javaConfig.configuration.runtimes
-        javaConfig.configuration.runtimes = await addAutoDetectedJdks(userRuntimes)
-        createLogger().info(`Server configured with the following runtimes: ${JSON.stringify(javaConfig.configuration.runtimes, null, 2)}`)
       }
 
       apiManager.initialize(requirements, serverMode)

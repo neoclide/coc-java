@@ -6,6 +6,7 @@ import { after, before, describe, it } from 'node:test'
 import { commands, ConfigurationTarget, snippetManager, SymbolKind, TransportKind, TreeItemCollapsibleState, Uri, window, workspace } from 'coc.nvim'
 import packageJson from '../package.json'
 import { apiManager } from '../src/apiManager.ts'
+import { getActiveLanguageClient } from '../src/extension.ts'
 import { resolveJavaPostfixCompletionItems } from '../src/completion.ts'
 import type { ExtensionAPI } from '../src/extension.api.ts'
 import { getJavaEncoding, getJavaServerMode, ServerMode } from '../src/settings.ts'
@@ -15,10 +16,11 @@ import { addAppCDSParams, addJavacParams, addMavenProjectCacheParams, getJavaExe
 import { sanitizeCommandLinksInHover } from '../src/hoverAction.ts'
 import { isCompatibleLombokVersion, parseLombokVersion, parseLombokVersionNumber } from '../src/lombokSupport.ts'
 import { isCompatibleRuntime } from '../src/javaRuntimes.ts'
-import { getMissingToolingJdkMessage, getRuntimeMajorVersion, isRuntimeVersionInRange, resolveRequirements, sortJdksByVersion } from '../src/requirements.ts'
+import { getMissingToolingJdkMessage, getRuntimeMajorVersion, getSupportedJreNames, isRuntimeVersionInRange, resolveRequirements, sortJdksByVersion } from '../src/requirements.ts'
 import { createExtendedOutlineNodes, extendedOutlineTree, ExtendedOutlineTreeDataProvider } from '../src/outline/extendedOutlineTree.ts'
 import { requestMoveWithConfirmation } from '../src/refactorAction.ts'
 import { showRequirementsError } from '../src/requirementsErrorHandler.ts'
+import { updateAutoDetectedJdks } from '../src/runtimeConfiguration.ts'
 import { escapeSnippetLiterals, prepareSnippetCodeAction } from '../src/snippetEdit.ts'
 import { askForProjects } from '../src/standardLanguageClientUtils.ts'
 
@@ -238,6 +240,178 @@ describe('coc-java fast contracts', () => {
     assert.equal(requirements.tooling_jre_version, 23)
     assert.equal(requirements.java_home, javaHome)
     assert.equal(requirements.java_version, 23)
+  })
+
+  it('preserves an explicit default project JDK when the tooling JDK skips discovery', async () => {
+    const toolingHome = path.join(fixtureDirectory, 'configured-jdk-23')
+    const projectHome = path.join(fixtureDirectory, 'configured-project-jdk-8')
+    await fs.mkdir(path.join(projectHome, 'bin'), { recursive: true })
+    await fs.writeFile(path.join(projectHome, 'bin', process.platform === 'win32' ? 'javac.exe' : 'javac'), '')
+    const state = { get: () => undefined, update: async () => undefined }
+    const requirements = await resolveRequirements({ workspaceState: state } as any, {
+      checkJavaPreferences: async () => ({ javaHome: toolingHome, preference: 'java.jdt.ls.java.home' }),
+      getRuntimeFromSettings: async () => [{
+        homedir: projectHome, version: { major: 8, java_version: '1.8' }, default: true,
+      }],
+      getMajorVersion: async () => 23,
+      findRuntimes: async () => { throw new Error('Explicit tooling JDK must skip discovery') },
+      checkAndDownloadJRE: async () => { throw new Error('Explicit tooling JDK must skip downloads') },
+    })
+    assert.equal(requirements.tooling_jre, toolingHome)
+    assert.equal(requirements.tooling_jre_version, 23)
+    assert.equal(requirements.java_home, projectHome)
+    assert.equal(requirements.java_version, 8)
+  })
+
+  it('defers project JDK discovery until client readiness and preserves the latest explicit runtimes', async () => {
+    const configuration = workspace.getConfiguration()
+    const originalDetect = configuration.get('java.configuration.detectJdks')
+    const originalRuntimes = configuration.get('java.configuration.runtimes')
+    let ready: () => void
+    let finishDiscovery: (runtimes: any[]) => void
+    let scanCalls = 0
+    let discoveryStarted: () => void
+    const started = new Promise<void>(resolve => { discoveryStarted = resolve })
+    const readiness = new Promise<void>(resolve => { ready = resolve })
+    const discovery = new Promise<any[]>(resolve => { finishDiscovery = resolve })
+    const notifications: RecordedMessage[] = []
+    const client = {
+      onReady: () => readiness,
+      isRunning: () => true,
+      sendNotification: async (method: string, params: any) => { notifications.push({ method, params }) },
+    } as any
+    try {
+      await configuration.update('java.configuration.detectJdks', true, ConfigurationTarget.Global)
+      const pending = updateAutoDetectedJdks(client, '/explicit/project-jdk', { discover: () => {
+        scanCalls++
+        discoveryStarted()
+        return discovery
+      } })
+      await Promise.resolve()
+      assert.equal(scanCalls, 0, 'system discovery must not run during initialization')
+      ready()
+      await withTimeout(started, 5_000, 'discovery did not start after client readiness')
+      assert.equal(scanCalls, 1)
+      assert.equal(notifications.length, 0, 'a slow scan must not prevent the client from becoming ready')
+      const configured = [{ name: 'JavaSE-21', path: '/new/explicit-jdk', default: true }]
+      await configuration.update('java.configuration.runtimes', configured, ConfigurationTarget.Global)
+      finishDiscovery([
+        { name: 'JavaSE-21', path: '/detected/jdk-21' },
+        { name: 'JavaSE-27', path: '/detected/jdk-27' },
+      ])
+      await pending
+      assert.equal(notifications.length, 1)
+      assert.equal(notifications[0].method, 'workspace/didChangeConfiguration')
+      assert.equal(notifications[0].params.settings.java.home, '/explicit/project-jdk')
+      assert.deepEqual(plain(notifications[0].params.settings.java.configuration.runtimes), [
+        ...configured, { name: 'JavaSE-27', path: '/detected/jdk-27' },
+      ])
+      assert.deepEqual(plain(workspace.getConfiguration().get('java.configuration.runtimes')), configured,
+        'auto-detection must not write back to user settings')
+    } finally {
+      ready()
+      finishDiscovery([])
+      await configuration.update('java.configuration.detectJdks', originalDetect, ConfigurationTarget.Global)
+      await configuration.update('java.configuration.runtimes', originalRuntimes, ConfigurationTarget.Global)
+    }
+  })
+
+  it('sends detected runtimes to the running language server after initialization', async () => {
+    const configuration = workspace.getConfiguration()
+    const originalDetect = configuration.get('java.configuration.detectJdks')
+    const originalRuntimes = configuration.get('java.configuration.runtimes')
+    const configured = [{ name: 'JavaSE-21', path: '/configured/project-jdk', default: true }]
+    const detected = { name: 'JavaSE-27', path: '/detected/jdk-27' }
+    try {
+      await configuration.update('java.configuration.detectJdks', true, ConfigurationTarget.Global)
+      await configuration.update('java.configuration.runtimes', configured, ConfigurationTarget.Global)
+      const client = await getActiveLanguageClient()
+      assert.ok(client?.isRunning())
+      const [, notification] = await executeAndWaitForNotification('workspace/didChangeConfiguration',
+        () => updateAutoDetectedJdks(client, api.javaRequirement.java_home, { discover: async () => [detected] }),
+        { settings: { java: { configuration: { runtimes: [...configured, detected] } } } })
+      assert.deepEqual(plain(notification.params.settings.java.configuration.runtimes), [...configured, detected])
+    } finally {
+      await configuration.update('java.configuration.detectJdks', originalDetect, ConfigurationTarget.Global)
+      await configuration.update('java.configuration.runtimes', originalRuntimes, ConfigurationTarget.Global)
+    }
+  })
+
+  it('skips disabled JDK discovery and ignores results after detection is disabled or the client stops', async () => {
+    const configuration = workspace.getConfiguration()
+    const originalDetect = configuration.get('java.configuration.detectJdks')
+    let running = true
+    let scanCalls = 0
+    const notifications: RecordedMessage[] = []
+    const client = {
+      onReady: async () => undefined,
+      isRunning: () => running,
+      sendNotification: async (method: string, params: any) => { notifications.push({ method, params }) },
+    } as any
+    try {
+      await configuration.update('java.configuration.detectJdks', false, ConfigurationTarget.Global)
+      await updateAutoDetectedJdks(client, '/explicit/jdk', { discover: async () => { scanCalls++; return [] } })
+      assert.equal(scanCalls, 0)
+      await configuration.update('java.configuration.detectJdks', true, ConfigurationTarget.Global)
+      await updateAutoDetectedJdks(client, '/explicit/jdk', { discover: async () => {
+        await configuration.update('java.configuration.detectJdks', false, ConfigurationTarget.Global)
+        return [{ name: 'JavaSE-21', path: '/detected/jdk' }]
+      } })
+      await configuration.update('java.configuration.detectJdks', true, ConfigurationTarget.Global)
+      await updateAutoDetectedJdks(client, '/explicit/jdk', { discover: async () => {
+        running = false
+        return [{ name: 'JavaSE-21', path: '/detected/jdk' }]
+      } })
+      assert.equal(notifications.length, 0)
+    } finally {
+      await configuration.update('java.configuration.detectJdks', originalDetect, ConfigurationTarget.Global)
+    }
+  })
+
+  it('preserves the selected importer in the deferred runtime notification', async () => {
+    const configuration = workspace.getConfiguration()
+    const keys = ['java.configuration.detectJdks', 'java.import.maven.enabled', 'java.import.gradle.enabled']
+    const original = keys.map(key => configuration.get(key))
+    const notifications: RecordedMessage[] = []
+    try {
+      for (const key of keys) await configuration.update(key, true, ConfigurationTarget.Global)
+      for (const activeBuildTool of ['maven', 'gradle']) {
+        await updateAutoDetectedJdks({
+          onReady: async () => undefined,
+          isRunning: () => true,
+          sendNotification: async (method: string, params: any) => { notifications.push({ method, params }) },
+        } as any, '/explicit/jdk', { discover: async () => [], activeBuildTool })
+        const settings = notifications[notifications.length - 1].params.settings.java
+        assert.equal(settings.import.maven.enabled, activeBuildTool === 'maven')
+        assert.equal(settings.import.gradle.enabled, activeBuildTool === 'gradle')
+      }
+    } finally {
+      for (const [index, key] of keys.entries()) {
+        await configuration.update(key, original[index], ConfigurationTarget.Global)
+      }
+    }
+  })
+
+  it('contains background JDK discovery failures without failing server startup', async () => {
+    const configuration = workspace.getConfiguration()
+    const originalDetect = configuration.get('java.configuration.detectJdks')
+    let scanCalls = 0
+    let notifications = 0
+    try {
+      await configuration.update('java.configuration.detectJdks', true, ConfigurationTarget.Global)
+      await updateAutoDetectedJdks({
+        onReady: async () => undefined,
+        isRunning: () => true,
+        sendNotification: async () => { notifications++ },
+      } as any, '/explicit/jdk', { discover: async () => {
+        scanCalls++
+        throw new Error('Failed to scan system JDKs')
+      } })
+      assert.equal(scanCalls, 1)
+      assert.equal(notifications, 0)
+    } finally {
+      await configuration.update('java.configuration.detectJdks', originalDetect, ConfigurationTarget.Global)
+    }
   })
 
   it('uses an installed Termux JDK and never attempts a bundled runtime download', async () => {
@@ -930,12 +1104,23 @@ describe('coc-java fast contracts', () => {
     assert.deepEqual(explicit, [])
   })
 
+  it('validates the entire classpath variable name', () => {
+    const pattern = new RegExp(packageJson.contributes.configuration.properties['java.classpath.variables'].items.pattern)
+    for (const value of ['LIB=/tmp/lib', '_LIB1=/tmp/lib', '$LIB=C:\\Java\\lib', 'LIB=', 'LIB=/tmp/a=b']) {
+      assert.equal(pattern.test(value), true, `valid classpath variable: ${value}`)
+    }
+    for (const value of ['1LIB=/tmp', ' LIB=/tmp', '-LIB=/tmp', 'bad-name=/tmp', '=missing-name', 'LIB', 'prefix\nLIB=/tmp']) {
+      assert.equal(pattern.test(value), false, `invalid classpath variable: ${value}`)
+    }
+  })
+
   it('forwards classpath variables and exposes Java 27 runtime definitions', async () => {
     const configuration = workspace.getConfiguration()
     try {
       await configuration.update('java.classpath.variables', ['LIB=/tmp/java-library'], ConfigurationTarget.Global)
       assert.deepEqual(plain(getJavaConfig('/virtual/jdk').classpath.variables), ['LIB=/tmp/java-library'])
-      assert.ok(packageJson.contributes.configuration.properties['java.configuration.runtimes'].items.properties.name.enum.includes('JavaSE-27'))
+      assert.deepEqual(plain(getSupportedJreNames()), packageJson.contributes.configuration.properties['java.configuration.runtimes'].items.properties.name.enum)
+      assert.ok(getSupportedJreNames().includes('JavaSE-27'))
       assert.equal(isCompatibleRuntime({ homedir: '/jdk-27', version: { java_version: '27', major: 27 } }, 'JavaSE-27'), true)
     } finally {
       await configuration.update('java.classpath.variables', undefined, ConfigurationTarget.Global)

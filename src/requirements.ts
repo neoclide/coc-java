@@ -11,9 +11,9 @@ import { createLogger } from './log'
 import { checkJavaPreferences } from './settings'
 import { existsSync } from 'fs'
 import { getJavaConfiguration } from './utils'
+import packageJson from '../package.json'
 
 let cachedJdks: IJavaRuntime[]
-let cachedJreNames: string[]
 
 export interface RequirementsData {
   tooling_jre: string
@@ -227,7 +227,7 @@ async function getRuntimeFromSettings(): Promise<any[] | undefined> {
 }
 
 export function getSupportedJreNames(): string[] {
-  return cachedJreNames
+  return packageJson.contributes.configuration.properties['java.configuration.runtimes'].items.properties.name.enum
 }
 
 export async function listJdks(force?: boolean): Promise<IJavaRuntime[]> {
