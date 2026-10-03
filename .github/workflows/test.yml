@@ -12,6 +12,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout coc.nvim release
+        uses: actions/checkout@v4
+        with:
+          repository: neoclide/coc.nvim
+          ref: release
+          path: .coc-test/coc.nvim
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -31,3 +38,5 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+        env:
+          COC_TEST_COC_PATH: ${{ github.workspace }}/.coc-test/coc.nvim
