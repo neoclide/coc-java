@@ -1491,22 +1491,23 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^22.20",
-    "coc-test": "^0.1.9",
-    "coc.nvim": "^0.0.83-next.26",
+    "@types/node": "^20.19.43",
+    "coc-test": "^0.2.0",
+    "coc.nvim": "^0.0.83-next.25",
     "esbuild": "^0.28.2",
     "expand-home-dir": "^0.0.3",
     "fmtr": "^1.1.2",
-    "fs-extra": "^8.1.0",
+    "fs-extra": "^10.0.0",
     "glob": "^13.0.6",
     "jdk-utils": "^0.5.1",
     "marked": "^4.0.12",
-    "semver": "^7.3.5",
-    "typescript": "^6.0.3",
+    "semver": "^7.6.3",
+    "typescript": "6.0.3",
     "uuid": "^14.0.2",
-    "vscode-languageserver-protocol": "^3.17.5"
+    "vscode-languageserver-protocol": "^3.18.3"
   },
   "allowScripts": {
     "esbuild@0.28.2": true
-  }
+  },
+  "packageManager": "npm@11.9.0"
 }

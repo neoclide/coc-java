@@ -315,6 +315,21 @@ See https://github.com/redhat-developer/vscode-java/wiki/%22Classpath-is-incompl
 - File a bug in [GitHub Issues](https://github.com/neoclide/coc-java/issues),
 - Chat with us on [Gitter](https://gitter.im/neoclide/coc.nvim),
 
+## Development
+
+Use Node.js 22.15 or newer and npm 11.9.0. Install dependencies from the
+committed npm lockfile, then build and validate:
+
+```sh
+npm ci
+npm run build
+npm run lint
+npm test
+```
+
+The integration tests require Neovim and a JDK 21 installation. Set
+`COC_JAVA_TEST_JAVA_HOME` if the JDK is not discovered automatically.
+
 ## License
 
 EPL 1.0, See [LICENSE](LICENSE) for more information.

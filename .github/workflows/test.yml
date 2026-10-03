@@ -25,6 +25,9 @@ jobs:
       - name: Install Neovim
         run: sudo apt-get update && sudo apt-get install -y neovim
 
+      - name: Use npm 11.9.0
+        run: npm install --global npm@11.9.0
+
       - run: npm ci
       - run: npm run lint
       - run: npm test
