@@ -11,7 +11,7 @@ import type { ExtensionAPI } from '../src/extension.api.ts'
 import { getJavaEncoding, getJavaServerMode, ServerMode } from '../src/settings.ts'
 import { getBuildFilePatterns, getJavaConfig } from '../src/utils.ts'
 import { createTypeBodySnippet } from '../src/fileEventHandler.ts'
-import { addAppCDSParams, addJavacParams, getJavaExecutable, getPredefinedVariablesEnv, getServerConfigurationDirectory, getUnicodeLocaleEnv, prepareExecutable, prepareParams } from '../src/javaServerStarter.ts'
+import { addAppCDSParams, addJavacParams, addMavenProjectCacheParams, getJavaExecutable, getPredefinedVariablesEnv, getServerConfigurationDirectory, getUnicodeLocaleEnv, prepareExecutable, prepareParams } from '../src/javaServerStarter.ts'
 import { sanitizeCommandLinksInHover } from '../src/hoverAction.ts'
 import { isCompatibleLombokVersion, parseLombokVersion, parseLombokVersionNumber } from '../src/lombokSupport.ts'
 import { isCompatibleRuntime } from '../src/javaRuntimes.ts'
@@ -207,7 +207,7 @@ describe('coc-java fast contracts', () => {
     }
   })
 
-  it('uses an explicitly configured tooling JDK without downloading another runtime', async () => {
+  it('uses an explicitly configured tooling JDK without system scans or downloads', async () => {
     const javaHome = path.join(fixtureDirectory, 'configured-jdk-23')
     await fs.mkdir(path.join(javaHome, 'bin'), { recursive: true })
     await fs.writeFile(path.join(javaHome, 'bin', process.platform === 'win32' ? 'javac.exe' : 'javac'), '')
@@ -225,7 +225,7 @@ describe('coc-java fast contracts', () => {
         preference: 'java.jdt.ls.java.home',
       }),
       getRuntimeFromSettings: async () => [],
-      findRuntimes: async () => [],
+      findRuntimes: async () => { throw new Error('Configured tooling JDK must skip system discovery') },
       getMajorVersion: async (candidate: string) => candidate === javaHome ? 23 : 0,
       checkAndDownloadJRE: async () => {
         downloadCalls++
@@ -394,7 +394,7 @@ describe('coc-java fast contracts', () => {
   it('loads every contributed Java setting and forwards it during initialization', () => {
     const properties = packageJson.contributes.configuration.properties as Record<string, ConfigurationSchema>
     const entries = Object.entries(properties)
-    assert.equal(entries.length, 135, 'update this contract when settings are intentionally added or removed')
+    assert.equal(entries.length, 137, 'update this contract when settings are intentionally added or removed')
 
     const transport = properties['java.transport']
     assert.equal(transport?.default, 'pipe')
@@ -884,6 +884,7 @@ describe('coc-java fast contracts', () => {
     }, path.join(fixtureDirectory, 'workspace'), context, false)
     assert.ok(params.includes('-Djdk.xml.maxGeneralEntitySizeLimit=0'))
     assert.ok(params.includes('-Djdk.xml.totalEntitySizeLimit=0'))
+    assert.ok(params.includes('-Dm2e.project.cache.size=50'))
 
     const javacParams: string[] = []
     addJavacParams(javacParams, 'dom')
@@ -902,12 +903,43 @@ describe('coc-java fast contracts', () => {
     addAppCDSParams(appCDSParams, 'on', fixtureDirectory, '1.42.0', 21, '')
     assert.ok(appCDSParams.includes('-XX:+AutoCreateSharedArchive'))
     assert.ok(appCDSParams.some(param => param.startsWith('-XX:SharedArchiveFile=')))
+    for (const version of [26, 27]) {
+      const unsupported: string[] = []
+      addAppCDSParams(unsupported, 'on', fixtureDirectory, '1.56.0', version, '')
+      assert.deepEqual(unsupported, [], 'Java 26+ must not receive removed AppCDS VM flags')
+    }
     const debugParams = ['-agentlib:jdwp=transport=dt_socket']
     addAppCDSParams(debugParams, 'on', fixtureDirectory, '1.42.0', 21, '')
     assert.equal(debugParams.length, 1, 'AppCDS should stay disabled while debugging')
     const java17Params: string[] = []
     addAppCDSParams(java17Params, 'on', fixtureDirectory, '1.42.0', 17, '')
     assert.equal(java17Params.length, 0, 'AppCDS should stay disabled on the supported Java 17 fallback')
+  })
+
+  it('honors Maven cache settings without overriding explicit VM arguments', () => {
+    const params: string[] = []
+    addMavenProjectCacheParams(params, 100, '')
+    assert.deepEqual(params, ['-Dm2e.project.cache.size=100'])
+    for (const size of [undefined, null, 0, -1, 1.5, '50', NaN]) {
+      const invalid: string[] = []
+      addMavenProjectCacheParams(invalid, size, '')
+      assert.deepEqual(invalid, [])
+    }
+    const explicit: string[] = []
+    addMavenProjectCacheParams(explicit, 50, '-Xmx1g -Dm2e.project.cache.size=200')
+    assert.deepEqual(explicit, [])
+  })
+
+  it('forwards classpath variables and exposes Java 27 runtime definitions', async () => {
+    const configuration = workspace.getConfiguration()
+    try {
+      await configuration.update('java.classpath.variables', ['LIB=/tmp/java-library'], ConfigurationTarget.Global)
+      assert.deepEqual(plain(getJavaConfig('/virtual/jdk').classpath.variables), ['LIB=/tmp/java-library'])
+      assert.ok(packageJson.contributes.configuration.properties['java.configuration.runtimes'].items.properties.name.enum.includes('JavaSE-27'))
+      assert.equal(isCompatibleRuntime({ homedir: '/jdk-27', version: { java_version: '27', major: 27 } }, 'JavaSE-27'), true)
+    } finally {
+      await configuration.update('java.classpath.variables', undefined, ConfigurationTarget.Global)
+    }
   })
 
   it('uses direct Java launches and a windowless executable for Windows pipes', async () => {
