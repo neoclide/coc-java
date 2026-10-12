@@ -208,6 +208,16 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
               })
             }
           },
+          provideTextDocumentContent: async (uri, token, next) => {
+            const content = await next(uri, token)
+            // jdt.ls (>= 1.61) serves jdt:// through workspace/textDocumentContent, the
+            // generic provider does not know the language and filetype detection maps
+            // the trailing .class of the uri to stata
+            if (uri.scheme === 'jdt') {
+              workspace.nvim.command('setfiletype java', true)
+            }
+            return content
+          },
           provideSelectionRanges: (document, positions, token, next) => {
             if (events.insertMode) return undefined
             return next(document, positions, token)
