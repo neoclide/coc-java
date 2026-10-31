@@ -35,7 +35,7 @@ export class TypeHierarchyTree {
       } else {
         await workspace.jumpTo(uri, position, 'edit')
       }
-    })
+    }, undefined, true)
 
     this.api = {
       setInput: async input => {

@@ -68,7 +68,7 @@ export class StandardLanguageClient {
 
     context.subscriptions.push(commands.registerCommand(Commands.RUNTIME_VALIDATION_OPEN, () => {
       // commands.executeCommand("workbench.action.openSettings", "java.configuration.runtimes")
-    }))
+    }, undefined, true))
 
     serverStatus.initialize()
     serverStatus.onServerStatusChanged(status => {
@@ -409,7 +409,7 @@ export class StandardLanguageClient {
 
       context.subscriptions.push(commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH_HELP, () => {
         commands.executeCommand(Commands.OPEN_BROWSER, 'https://github.com/redhat-developer/vscode-java/wiki/%22Classpath-is-incomplete%22-warning')
-      }))
+      }, undefined, true))
 
       context.subscriptions.push(commands.registerCommand(Commands.PROJECT_CONFIGURATION_STATUS, (uri, status) => setProjectConfigurationUpdate(this.languageClient, uri, status), null, true))
 
@@ -488,11 +488,11 @@ export class StandardLanguageClient {
 
       context.subscriptions.push(commands.registerCommand(Commands.SHOW_SUPERTYPE_HIERARCHY, async (location?: any) => {
         await showTypeHierarchy(TypeHierarchyDirection.parents, location)
-      }, null, true))
+      }))
 
       context.subscriptions.push(commands.registerCommand(Commands.SHOW_SUBTYPE_HIERARCHY, async (location?: any) => {
         await showTypeHierarchy(TypeHierarchyDirection.children, location)
-      }, null, true))
+      }))
 
       context.subscriptions.push(commands.registerCommand(Commands.CHANGE_BASE_TYPE, async (item: TypeHierarchyItem) => {
         typeHierarchyTree.changeBaseItem(item)
@@ -625,7 +625,7 @@ export class StandardLanguageClient {
       context.subscriptions.push(commands.registerCommand(Commands.LEARN_MORE_ABOUT_REFACTORING, async (kind: CodeActionKind) => {
         const sectionId: string = javaRefactorKinds.get(kind) || ''
         markdownPreviewProvider.show(context.asAbsolutePath(path.join('document', `${Commands.LEARN_MORE_ABOUT_REFACTORING}.md`)), 'Java Refactoring', sectionId, context)
-      }))
+      }, undefined, true))
 
       context.subscriptions.push(commands.registerCommand(Commands.CREATE_MODULE_INFO_COMMAND, async () => {
         let doc = window.activeTextEditor?.document
@@ -651,7 +651,7 @@ export class StandardLanguageClient {
 
       context.subscriptions.push(commands.registerCommand(Commands.UPGRADE_GRADLE_WRAPPER, (projectUri: string, version?: string) => {
         upgradeGradle(projectUri, version)
-      }))
+      }, undefined, true))
 
       languages.registerCodeActionProvider([{
         language: "xml",

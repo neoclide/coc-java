@@ -274,7 +274,7 @@ export function registerLombokConfigureCommand(context: ExtensionContext) {
       const msg = `Current Lombok version is ${isExtensionLombok ? 'extension\'s' : 'project\'s'} version. Nothing to do.`
       window.showInformationMessage(msg)
     }
-  }, null, true))
+  }))
 }
 
 export namespace LombokVersionItemFactory {

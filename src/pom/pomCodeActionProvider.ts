@@ -10,7 +10,7 @@ export class PomCodeActionProvider implements CodeActionProvider<CodeAction> {
       await workspace.openTextDocument(uri)
       await workspace.nvim.command('noa w')
       commands.executeCommand(Commands.CONFIGURATION_UPDATE, uri)
-    }))
+    }, undefined, true))
   }
 
   provideCodeActions(document: LinesTextDocument, range: Range, context: CodeActionContext, token: CancellationToken): ProviderResult<(Command | CodeAction)[]> {

@@ -67,10 +67,15 @@ function registerOverrideMethodsCommand(languageClient: LanguageClient, context:
 
 function registerCleanupCommand(languageClient: LanguageClient, context: ExtensionContext): void {
   context.subscriptions.push(commands.registerCommand(Commands.MANUAL_CLEANUP, async () => {
-    const textDocument: TextDocumentIdentifier = TextDocumentIdentifier.create(window.activeTextEditor.document.uri)
-    const workspaceEdit = await languageClient.sendRequest(CleanupRequest.type, textDocument)
-    await workspace.applyEdit(workspaceEdit)
-    window.showWarningMessage("Applied cleanup, :w to save changes")
+    const editor = window.activeTextEditor
+    if (editor) {
+      const textDocument: TextDocumentIdentifier = TextDocumentIdentifier.create(editor.document.uri)
+      const workspaceEdit = await languageClient.sendRequest(CleanupRequest.type, textDocument)
+      await workspace.applyEdit(workspaceEdit)
+      window.showWarningMessage("Applied cleanup, :w to save changes")
+    } else {
+      window.showWarningMessage("No active editor to clean up")
+    }
   }))
 }
 

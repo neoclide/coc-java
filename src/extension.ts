@@ -92,7 +92,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
   }, null, true))
   context.subscriptions.push(commands.registerCommand(Commands.NOT_COVERED_EXECUTION, async () => {
     markdownPreviewProvider.show(context.asAbsolutePath(path.join('document', `_java.notCoveredExecution.md`)), 'Not Covered Maven Plugin Execution', "", context)
-  }))
+  }, undefined, true))
 
   storagePath = context.storagePath
   if (!storagePath) {
@@ -103,7 +103,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
   }, null, true))
   context.subscriptions.push(commands.registerCommand(Commands.LEARN_MORE_ABOUT_CLEAN_UPS, async () => {
     markdownPreviewProvider.show(context.asAbsolutePath(path.join('document', `${Commands.LEARN_MORE_ABOUT_CLEAN_UPS}.md`)), 'Java Clean Ups', "java-clean-ups", context)
-  }))
+  }, undefined, true))
   clientLogFile = path.join(storagePath, 'client.log')
   initializeLogFile(clientLogFile)
 
@@ -440,11 +440,11 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
       context.subscriptions.push(commands.registerCommand(Commands.CLEAN_WORKSPACE, (force?: boolean) => cleanWorkspace(workspacePath, force)))
       context.subscriptions.push(commands.registerCommand(Commands.CLEAN_SHARED_INDEXES, () => cleanSharedIndexes(context)))
 
-      context.subscriptions.push(commands.registerCommand(Commands.GET_WORKSPACE_PATH, () => workspacePath))
+      context.subscriptions.push(commands.registerCommand(Commands.GET_WORKSPACE_PATH, () => workspacePath, undefined, true))
 
       context.subscriptions.push(commands.registerCommand(Commands.REFRESH_BUNDLES_COMMAND, () => {
         return getBundlesToReload()
-      }))
+      }, undefined, true))
 
       context.subscriptions.push(onConfigurationChange(workspacePath, context))
 
@@ -483,7 +483,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
         if (choice === "Yes") {
           await startStandardServer(context, requirements, clientOptions, workspacePath, true)
         }
-      }, null, true)
+      })
 
       context.subscriptions.push(serverStatusBarProvider)
       context.subscriptions.push(runtimeStatusBarProvider)

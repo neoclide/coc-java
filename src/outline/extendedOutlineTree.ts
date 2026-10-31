@@ -111,7 +111,7 @@ export class ExtendedOutlineTree implements Disposable {
       }),
       commands.registerCommand(Commands.OPEN_EXTENDED_OUTLINE_LOCATION, async (uri: string, position: Position) => {
         await this.openLocation(uri, position)
-      }),
+      }, undefined, true),
       this,
     )
   }
