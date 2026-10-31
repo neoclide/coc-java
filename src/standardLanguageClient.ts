@@ -408,7 +408,12 @@ export class StandardLanguageClient {
         commands.executeCommand(Commands.SHOW_REFERENCES, Uri.parse(uri), position, locations)
       }, null, true))
 
-      context.subscriptions.push(commands.registerCommand(Commands.CONFIGURATION_UPDATE, (uri?: Uri) => projectConfigurationUpdate(this.languageClient, uri)))
+      context.subscriptions.push(commands.registerCommand(Commands.CONFIGURATION_UPDATE, async (uri?: Uri) => {
+        const count = await projectConfigurationUpdate(this.languageClient, uri)
+        if (uri === undefined && count > 0) {
+          window.showInformationMessage(`Updating the configuration of ${count} Java project${count === 1 ? '' : 's'}`)
+        }
+      }))
 
       context.subscriptions.push(commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH, () => setIncompleteClasspathSeverity('ignore'), null, true))
 
@@ -554,6 +559,8 @@ export class StandardLanguageClient {
           await new Promise(resolve => setTimeout(resolve, Math.max(0, 1000 - (Date.now() - start))))
           if (res === BuildWorkspaceStatus.failed || res === BuildWorkspaceStatus.withError) {
             window.showErrorMessage('The project build finished with errors, see the Java build output')
+          } else if (res === BuildWorkspaceStatus.succeed) {
+            window.showInformationMessage(`Rebuilt ${resources.length} Java project${resources.length === 1 ? '' : 's'}`)
           }
           return res
         })

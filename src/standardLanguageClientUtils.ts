@@ -40,7 +40,7 @@ export async function applyRefactorEdit(languageClient: LanguageClient, refactor
   }
 }
 
-export async function projectConfigurationUpdate(languageClient: LanguageClient, uris?: TextDocumentIdentifier | Uri | Uri[]) {
+export async function projectConfigurationUpdate(languageClient: LanguageClient, uris?: TextDocumentIdentifier | Uri | Uri[]): Promise<number> {
   let resources: Uri[] = []
   if (!uris) {
     const uri: string | undefined = window.activeTextEditor?.document.uri
@@ -74,6 +74,7 @@ export async function projectConfigurationUpdate(languageClient: LanguageClient,
       }),
     })
   }
+  return resources.length
 }
 
 function isJavaConfigFile(filePath: string): boolean {
