@@ -218,6 +218,7 @@ export function registerLombokConfigureCommand(context: ExtensionContext) {
   context.subscriptions.push(commands.registerCommand(Commands.LOMBOK_CONFIGURE, async (buildFilePath: string) => {
     const extensionLombokPath: string = getExtensionLombokPath(context)
     if (!extensionLombokPath || !projectLombokPath) {
+      window.showWarningMessage('This project does not use Lombok')
       return
     }
     const extensionItemLabel = 'Use Extension\'s Version'

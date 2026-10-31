@@ -375,7 +375,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
 
       context.subscriptions.push(commands.registerCommand(Commands.COPY_FULLY_QUALIFIED_NAME, async () => {
         const editor = window.activeTextEditor
-        if (!editor || editor.document.languageId !== 'java') return
+        if (!editor || editor.document.languageId !== 'java') {
+          window.showWarningMessage('Open a Java file to copy a fully qualified name')
+          return
+        }
         const position = await window.getCursorPosition()
         const params = {
           textDocument: { uri: editor.document.uri },
@@ -388,6 +391,9 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
         )
         if (fullyQualifiedName) {
           await workspace.nvim.call('setreg', ['+', fullyQualifiedName])
+          window.showInformationMessage(`Copied ${fullyQualifiedName}`)
+        } else {
+          window.showWarningMessage('No type found under the cursor')
         }
       }))
 
@@ -465,11 +471,13 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
 
         const clientStatus: ClientStatus = standardClient.getClientStatus()
         if (clientStatus === ClientStatus.starting || clientStatus === ClientStatus.started) {
+          window.showWarningMessage('The Java language server is already starting or running in Standard mode')
           return
         }
 
         const api: ExtensionAPI = apiManager.getApiInstance()
         if (api.serverMode === switchTo || api.serverMode === ServerMode.standard) {
+          window.showWarningMessage('The Java language server is already in the requested mode')
           return
         }
 
@@ -786,6 +794,8 @@ async function cleanSharedIndexes(context: ExtensionContext) {
       deleteDirectory(sharedIndexLocation)
       commands.executeCommand(Commands.RELOAD_WINDOW)
     }
+  } else {
+    window.showWarningMessage('No shared indexes to clean')
   }
 }
 
@@ -802,6 +812,7 @@ async function openRollingServerLogFile(workspacePath: string, filename: string)
   try {
     files = await glob(`${filename}-*`, { cwd: dirname })
   } catch (_err) {
+    window.showErrorMessage(`Could not read the Java Language Server log folder ${dirname}`)
     return false
   }
   if (files.length > 0) {
@@ -809,6 +820,7 @@ async function openRollingServerLogFile(workspacePath: string, filename: string)
     const logFile = path.join(dirname, files[files.length - 1])
     return openLogFile(logFile, `Could not open Java Language Server log file ${filename}`)
   }
+  window.showWarningMessage(`No Java Language Server log file ${filename} found yet`)
   return false
 }
 

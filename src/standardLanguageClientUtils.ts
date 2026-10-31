@@ -96,7 +96,11 @@ function getProjectDescription(projectPath: string): string {
  */
 export async function askForProjects(activeFileUri: Uri | undefined, placeHolder: string, canPickMany: boolean = true): Promise<Uri[]> {
   const projectPicks = await generateProjectPicks(activeFileUri)
-  if (!projectPicks?.length) {
+  if (!projectPicks) {
+    window.showWarningMessage('Could not list the Java projects, the Java language server may still be starting')
+    return []
+  } else if (!projectPicks.length) {
+    window.showWarningMessage('No Java project found in the workspace')
     return []
   } else if (projectPicks.length === 1) {
     return [Uri.file(projectPicks[0].detail)]

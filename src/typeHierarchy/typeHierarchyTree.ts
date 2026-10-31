@@ -82,7 +82,10 @@ export class TypeHierarchyTree {
     try {
       lspItem = await commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.OPEN_TYPE_HIERARCHY, JSON.stringify(params), JSON.stringify(direction), JSON.stringify(0), this.cancelTokenSource.token)
     } catch (e) {
-      // operation cancelled
+      const code = e && typeof e === 'object' && 'code' in e ? (e as any).code : undefined
+      if (code !== -32800 && !this.cancelTokenSource.token.isCancellationRequested) {
+        window.showErrorMessage(`Could not load the type hierarchy: ${e instanceof Error ? e.message : String(e)}`)
+      }
       return
     }
     if (!lspItem) {
@@ -103,9 +106,9 @@ export class TypeHierarchyTree {
     await this.api.setInput(input)
   }
 
-  public changeDirection(direction: TypeHierarchyDirection): void {
+  public changeDirection(direction: TypeHierarchyDirection): boolean {
     if (!this.api || !this.baseItem || !this.location) {
-      return
+      return false
     }
     if (this.cancelTokenSource) {
       this.cancelTokenSource.cancel()
@@ -116,6 +119,7 @@ export class TypeHierarchyTree {
     const input: TypeHierarchyTreeInput = new TypeHierarchyTreeInput(this.location, direction, this.cancelTokenSource.token, this.baseItem)
     this.direction = direction
     this.api.setInput(input)
+    return true
   }
 
   public async changeBaseItem(item: TypeHierarchyItem): Promise<void> {

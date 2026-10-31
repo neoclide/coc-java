@@ -124,7 +124,10 @@ export class ExtendedOutlineTree implements Disposable {
       uri = Uri.parse(location)
     } else {
       const document = window.activeTextEditor?.document
-      if (!document || document.languageId !== 'java') return
+      if (!document || document.languageId !== 'java') {
+        window.showWarningMessage('Open a Java file to show its outline')
+        return
+      }
       uri = Uri.parse(document.uri)
     }
 
