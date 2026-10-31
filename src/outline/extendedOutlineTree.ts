@@ -111,7 +111,7 @@ export class ExtendedOutlineTree implements Disposable {
       }),
       commands.registerCommand(Commands.OPEN_EXTENDED_OUTLINE_LOCATION, async (uri: string, position: Position) => {
         await this.openLocation(uri, position)
-      }),
+      }, undefined, true),
       this,
     )
   }
@@ -124,7 +124,10 @@ export class ExtendedOutlineTree implements Disposable {
       uri = Uri.parse(location)
     } else {
       const document = window.activeTextEditor?.document
-      if (!document || document.languageId !== 'java') return
+      if (!document || document.languageId !== 'java') {
+        window.showWarningMessage('Open a Java file to show its outline')
+        return
+      }
       uri = Uri.parse(document.uri)
     }
 

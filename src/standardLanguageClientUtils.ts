@@ -40,7 +40,7 @@ export async function applyRefactorEdit(languageClient: LanguageClient, refactor
   }
 }
 
-export async function projectConfigurationUpdate(languageClient: LanguageClient, uris?: TextDocumentIdentifier | Uri | Uri[]) {
+export async function projectConfigurationUpdate(languageClient: LanguageClient, uris?: TextDocumentIdentifier | Uri | Uri[]): Promise<number> {
   let resources: Uri[] = []
   if (!uris) {
     const uri: string | undefined = window.activeTextEditor?.document.uri
@@ -74,6 +74,7 @@ export async function projectConfigurationUpdate(languageClient: LanguageClient,
       }),
     })
   }
+  return resources.length
 }
 
 function isJavaConfigFile(filePath: string): boolean {
@@ -96,7 +97,11 @@ function getProjectDescription(projectPath: string): string {
  */
 export async function askForProjects(activeFileUri: Uri | undefined, placeHolder: string, canPickMany: boolean = true): Promise<Uri[]> {
   const projectPicks = await generateProjectPicks(activeFileUri)
-  if (!projectPicks?.length) {
+  if (!projectPicks) {
+    window.showWarningMessage('Could not list the Java projects, the Java language server may still be starting')
+    return []
+  } else if (!projectPicks.length) {
+    window.showWarningMessage('No Java project found in the workspace')
     return []
   } else if (projectPicks.length === 1) {
     return [Uri.file(projectPicks[0].detail)]

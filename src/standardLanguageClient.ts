@@ -68,7 +68,7 @@ export class StandardLanguageClient {
 
     context.subscriptions.push(commands.registerCommand(Commands.RUNTIME_VALIDATION_OPEN, () => {
       // commands.executeCommand("workbench.action.openSettings", "java.configuration.runtimes")
-    }))
+    }, undefined, true))
 
     serverStatus.initialize()
     serverStatus.onServerStatusChanged(status => {
@@ -353,6 +353,9 @@ export class StandardLanguageClient {
       const buildFileSelector = new BuildFileSelector(context, projectUris, false)
       const selectedBuildFiles = await buildFileSelector.selectBuildFiles()
       if (selectedBuildFiles === undefined) {
+        if (buildFileSelector.getAllFoundBuildFiles().length === 0) {
+          window.showWarningMessage('No build files found in the workspace, open a Maven or Gradle project')
+        }
         return; // cancelled by user
       }
       const importedFolders = projectUris.map(uri => Uri.parse(uri).fsPath)
@@ -385,6 +388,8 @@ export class StandardLanguageClient {
       if (filesToImport.size > 0 || folderToUpdate.size > 0 || folderToRemove.size > 0) {
         return await commands.executeCommand<void>(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.CHANGE_IMPORTED_PROJECTS,
           Array.from(filesToImport), Array.from(folderToUpdate), Array.from(folderToRemove))
+      } else {
+        window.showWarningMessage('The selected projects are already imported, nothing to change')
       }
     }))
 
@@ -403,13 +408,18 @@ export class StandardLanguageClient {
         commands.executeCommand(Commands.SHOW_REFERENCES, Uri.parse(uri), position, locations)
       }, null, true))
 
-      context.subscriptions.push(commands.registerCommand(Commands.CONFIGURATION_UPDATE, (uri?: Uri) => projectConfigurationUpdate(this.languageClient, uri)))
+      context.subscriptions.push(commands.registerCommand(Commands.CONFIGURATION_UPDATE, async (uri?: Uri) => {
+        const count = await projectConfigurationUpdate(this.languageClient, uri)
+        if (uri === undefined && count > 0) {
+          window.showInformationMessage(`Updating the configuration of ${count} Java project${count === 1 ? '' : 's'}`)
+        }
+      }))
 
       context.subscriptions.push(commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH, () => setIncompleteClasspathSeverity('ignore'), null, true))
 
       context.subscriptions.push(commands.registerCommand(Commands.IGNORE_INCOMPLETE_CLASSPATH_HELP, () => {
         commands.executeCommand(Commands.OPEN_BROWSER, 'https://github.com/redhat-developer/vscode-java/wiki/%22Classpath-is-incomplete%22-warning')
-      }))
+      }, undefined, true))
 
       context.subscriptions.push(commands.registerCommand(Commands.PROJECT_CONFIGURATION_STATUS, (uri, status) => setProjectConfigurationUpdate(this.languageClient, uri, status), null, true))
 
@@ -423,8 +433,10 @@ export class StandardLanguageClient {
         let superImplLocation: Location | undefined
 
         if (!location) { // comes from command palette
-          if (!window.activeTextEditor) return
-          if (window.activeTextEditor?.document.languageId !== "java") return
+          if (window.activeTextEditor?.document.languageId !== "java") {
+            window.showWarningMessage('Open a Java file to navigate to the super implementation')
+            return
+          }
           location = Uri.parse(window.activeTextEditor.document.uri)
         }
         let position = await window.getCursorPosition()
@@ -470,7 +482,9 @@ export class StandardLanguageClient {
         } else {
           const editor = window.activeTextEditor
           if (editor?.document.languageId !== "java") {
-            typeHierarchyTree.changeDirection(direction)
+            if (!typeHierarchyTree.changeDirection(direction)) {
+              window.showWarningMessage('Open a Java file to show the type hierarchy')
+            }
             return
           }
           const position = await window.getCursorPosition()
@@ -488,11 +502,11 @@ export class StandardLanguageClient {
 
       context.subscriptions.push(commands.registerCommand(Commands.SHOW_SUPERTYPE_HIERARCHY, async (location?: any) => {
         await showTypeHierarchy(TypeHierarchyDirection.parents, location)
-      }, null, true))
+      }))
 
       context.subscriptions.push(commands.registerCommand(Commands.SHOW_SUBTYPE_HIERARCHY, async (location?: any) => {
         await showTypeHierarchy(TypeHierarchyDirection.children, location)
-      }, null, true))
+      }))
 
       context.subscriptions.push(commands.registerCommand(Commands.CHANGE_BASE_TYPE, async (item: TypeHierarchyItem) => {
         typeHierarchyTree.changeBaseItem(item)
@@ -543,6 +557,11 @@ export class StandardLanguageClient {
             }
           }
           await new Promise(resolve => setTimeout(resolve, Math.max(0, 1000 - (Date.now() - start))))
+          if (res === BuildWorkspaceStatus.failed || res === BuildWorkspaceStatus.withError) {
+            window.showErrorMessage('The project build finished with errors, see the Java build output')
+          } else if (res === BuildWorkspaceStatus.succeed) {
+            window.showInformationMessage(`Rebuilt ${resources.length} Java project${resources.length === 1 ? '' : 's'}`)
+          }
           return res
         })
       }))
@@ -551,6 +570,9 @@ export class StandardLanguageClient {
         return window.withProgress({ title: 'Compiling' }, async p => {
           if (typeof isFullCompile !== 'boolean') {
             const selection = await window.showQuickPick(['Incremental', 'Full'], { placeHolder: 'please choose compile type:' })
+            if (selection === undefined) {
+              return BuildWorkspaceStatus.cancelled
+            }
             isFullCompile = selection !== 'Incremental'
           }
           p.report({ message: 'Compiling workspace...' })
@@ -567,14 +589,21 @@ export class StandardLanguageClient {
             }
           }
           await new Promise(resolve => setTimeout(resolve, Math.max(0, 1000 - (Date.now() - start))))
+          if (res === BuildWorkspaceStatus.failed || res === BuildWorkspaceStatus.withError) {
+            window.showErrorMessage('The workspace compile finished with errors, see the Java build output')
+          }
           return res
         })
       }))
 
       context.subscriptions.push(commands.registerCommand(Commands.UPDATE_SOURCE_ATTACHMENT_CMD, async (classFileUri?: Uri): Promise<boolean> => {
         if (!classFileUri) {
-          classFileUri = window.activeTextEditor ? Uri.parse(window.activeTextEditor.document.uri) : undefined
-          if (!classFileUri || classFileUri.scheme !== 'file') return
+          const activeUri = window.activeTextEditor ? Uri.parse(window.activeTextEditor.document.uri) : undefined
+          if (!activeUri || !(activeUri.scheme === 'jdt' || (activeUri.scheme === 'file' && activeUri.fsPath.endsWith('.class')))) {
+            window.showWarningMessage('Open a class file to update its source attachment')
+            return false
+          }
+          classFileUri = activeUri
         }
         const resolveRequest: SourceAttachmentRequest = {
           classFileUri: classFileUri.toString(),
@@ -625,7 +654,7 @@ export class StandardLanguageClient {
       context.subscriptions.push(commands.registerCommand(Commands.LEARN_MORE_ABOUT_REFACTORING, async (kind: CodeActionKind) => {
         const sectionId: string = javaRefactorKinds.get(kind) || ''
         markdownPreviewProvider.show(context.asAbsolutePath(path.join('document', `${Commands.LEARN_MORE_ABOUT_REFACTORING}.md`)), 'Java Refactoring', sectionId, context)
-      }))
+      }, undefined, true))
 
       context.subscriptions.push(commands.registerCommand(Commands.CREATE_MODULE_INFO_COMMAND, async () => {
         let doc = window.activeTextEditor?.document
@@ -646,12 +675,14 @@ export class StandardLanguageClient {
 
         if (moduleInfoUri) {
           await workspace.jumpTo(moduleInfoUri)
+        } else {
+          window.showErrorMessage('The language server did not create a module-info.java')
         }
       }))
 
       context.subscriptions.push(commands.registerCommand(Commands.UPGRADE_GRADLE_WRAPPER, (projectUri: string, version?: string) => {
         upgradeGradle(projectUri, version)
-      }))
+      }, undefined, true))
 
       languages.registerCodeActionProvider([{
         language: "xml",

@@ -92,7 +92,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
   }, null, true))
   context.subscriptions.push(commands.registerCommand(Commands.NOT_COVERED_EXECUTION, async () => {
     markdownPreviewProvider.show(context.asAbsolutePath(path.join('document', `_java.notCoveredExecution.md`)), 'Not Covered Maven Plugin Execution', "", context)
-  }))
+  }, undefined, true))
 
   storagePath = context.storagePath
   if (!storagePath) {
@@ -103,7 +103,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
   }, null, true))
   context.subscriptions.push(commands.registerCommand(Commands.LEARN_MORE_ABOUT_CLEAN_UPS, async () => {
     markdownPreviewProvider.show(context.asAbsolutePath(path.join('document', `${Commands.LEARN_MORE_ABOUT_CLEAN_UPS}.md`)), 'Java Clean Ups', "java-clean-ups", context)
-  }))
+  }, undefined, true))
   clientLogFile = path.join(storagePath, 'client.log')
   initializeLogFile(clientLogFile)
 
@@ -207,6 +207,16 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
                 }
               })
             }
+          },
+          provideTextDocumentContent: async (uri, token, next) => {
+            const content = await next(uri, token)
+            // jdt.ls (>= 1.61) serves jdt:// through workspace/textDocumentContent, the
+            // generic provider does not know the language and filetype detection maps
+            // the trailing .class of the uri to stata
+            if (uri.scheme === 'jdt') {
+              workspace.nvim.command('setfiletype java', true)
+            }
+            return content
           },
           provideSelectionRanges: (document, positions, token, next) => {
             if (events.insertMode) return undefined
@@ -365,7 +375,10 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
 
       context.subscriptions.push(commands.registerCommand(Commands.COPY_FULLY_QUALIFIED_NAME, async () => {
         const editor = window.activeTextEditor
-        if (!editor || editor.document.languageId !== 'java') return
+        if (!editor || editor.document.languageId !== 'java') {
+          window.showWarningMessage('Open a Java file to copy a fully qualified name')
+          return
+        }
         const position = await window.getCursorPosition()
         const params = {
           textDocument: { uri: editor.document.uri },
@@ -378,6 +391,9 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
         )
         if (fullyQualifiedName) {
           await workspace.nvim.call('setreg', ['+', fullyQualifiedName])
+          window.showInformationMessage(`Copied ${fullyQualifiedName}`)
+        } else {
+          window.showWarningMessage('No type found under the cursor')
         }
       }))
 
@@ -430,11 +446,11 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
       context.subscriptions.push(commands.registerCommand(Commands.CLEAN_WORKSPACE, (force?: boolean) => cleanWorkspace(workspacePath, force)))
       context.subscriptions.push(commands.registerCommand(Commands.CLEAN_SHARED_INDEXES, () => cleanSharedIndexes(context)))
 
-      context.subscriptions.push(commands.registerCommand(Commands.GET_WORKSPACE_PATH, () => workspacePath))
+      context.subscriptions.push(commands.registerCommand(Commands.GET_WORKSPACE_PATH, () => workspacePath, undefined, true))
 
       context.subscriptions.push(commands.registerCommand(Commands.REFRESH_BUNDLES_COMMAND, () => {
         return getBundlesToReload()
-      }))
+      }, undefined, true))
 
       context.subscriptions.push(onConfigurationChange(workspacePath, context))
 
@@ -455,11 +471,13 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
 
         const clientStatus: ClientStatus = standardClient.getClientStatus()
         if (clientStatus === ClientStatus.starting || clientStatus === ClientStatus.started) {
+          window.showWarningMessage('The Java language server is already starting or running in Standard mode')
           return
         }
 
         const api: ExtensionAPI = apiManager.getApiInstance()
         if (api.serverMode === switchTo || api.serverMode === ServerMode.standard) {
+          window.showWarningMessage('The Java language server is already in the requested mode')
           return
         }
 
@@ -473,7 +491,7 @@ export async function activate(context: ExtensionContext): Promise<ExtensionAPI>
         if (choice === "Yes") {
           await startStandardServer(context, requirements, clientOptions, workspacePath, true)
         }
-      }, null, true)
+      })
 
       context.subscriptions.push(serverStatusBarProvider)
       context.subscriptions.push(runtimeStatusBarProvider)
@@ -776,6 +794,8 @@ async function cleanSharedIndexes(context: ExtensionContext) {
       deleteDirectory(sharedIndexLocation)
       commands.executeCommand(Commands.RELOAD_WINDOW)
     }
+  } else {
+    window.showWarningMessage('No shared indexes to clean')
   }
 }
 
@@ -792,6 +812,7 @@ async function openRollingServerLogFile(workspacePath: string, filename: string)
   try {
     files = await glob(`${filename}-*`, { cwd: dirname })
   } catch (_err) {
+    window.showErrorMessage(`Could not read the Java Language Server log folder ${dirname}`)
     return false
   }
   if (files.length > 0) {
@@ -799,6 +820,7 @@ async function openRollingServerLogFile(workspacePath: string, filename: string)
     const logFile = path.join(dirname, files[files.length - 1])
     return openLogFile(logFile, `Could not open Java Language Server log file ${filename}`)
   }
+  window.showWarningMessage(`No Java Language Server log file ${filename} found yet`)
   return false
 }
 
